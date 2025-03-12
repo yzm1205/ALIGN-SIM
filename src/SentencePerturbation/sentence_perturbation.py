@@ -38,6 +38,12 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     # TODO: make it compatible with other language datasets
     print("Loading dataset...")
     data = read_data(dataset_name) 
+    if "Unnamed: 0" in data.columns:
+        data.drop("Unnamed: 0", axis=1, inplace=True)
+    
+    if "idx" in data.columns:
+        data.drop("idx", axis=1, inplace=True)
+        
     print(f"Loaded {dataset_name} dataset")
     
     print("--------------------------------------")
@@ -51,11 +57,12 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     # Create a new dataframe to store perturbed sentences
     # Sample sentences
     perturbed_data = pd.DataFrame(columns=["original_sentence"])
-    sample_data , pos_pairs, balance_dataset  = sampling(data, sample_size)
+    # sample_data , pos_pairs, balance_dataset  = sampling(data, sample_size)
     
     
     if task in ["Syn","syn","Synonym"]:
         print("Creating Synonym perturbed data...")
+        sample_data = sampling(data, task, sample_size)
         perturbed_data["original_sentence"] = sample_data.sentence1
         perturbed_data["perturb_n1"] = perturbed_data["original_sentence"].apply(lambda x: replacer.sentence_replacement(x, 1, "synonyms"))
         perturbed_data["perturb_n2"] = perturbed_data["original_sentence"].apply(lambda x: replacer.sentence_replacement(x, 2, "synonyms"))
@@ -67,27 +74,31 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         print("Creating Paraphrase perturbed data...")
         # shuffling the negative samples
         # we also want equal number of positive and negative samples
-        perturbed_data = balance_dataset
+        perturbed_data = sampling(data, task, sample_size) # balance data
+        perturbed_data["original_sentence"] = perturbed_data.sentence1
+        perturbed_data["paraphrased_sentence"] = perturbed_data.sentence2
         assert perturbed_data.shape[1] == 3, "Perturbed data size mismatch" # original_sentence, paraphrased, label
         
     if task in ["Anto","anto","Antonym"]:
         print("Creating Antonym perturbed data...")
+        pos_pairs = sampling(data, task, sample_size)
         # Apply antonym replacement
         perturbed_data["original_sentence"] = pos_pairs.sentence1
         perturbed_data["paraphrased_sentence"] = pos_pairs.sentence2
         perturbed_data["perturb_n1"] = perturbed_data["original_sentence"].apply(lambda x: replacer.sentence_replacement(x, 1, "antonyms"))
-        # assert perturbed_data.shape[1] == 2, "Perturbed data size mismatch"
+        assert perturbed_data.shape[1] == 3, "Perturbed data size mismatch"
         
     # Apply jumbling
     if task in ["jumbling", "Jumbling","jumb"]:
         print("Creating Jumbling perturbed data...")
+        pos_pairs = sampling(data, task, sample_size)
         perturbed_data["original_sentence"] = pos_pairs.sentence1
         perturbed_data["paraphrased_sentence"] = pos_pairs.sentence2
         perturbed_data["perturb_n1"]= perturbed_data["original_sentence"].apply(lambda x: WordSwapping.random_swap(x,1))
         perturbed_data["perturb_n2"]= perturbed_data["original_sentence"].apply(lambda x: WordSwapping.random_swap(x,2))
         perturbed_data["perturb_n3"]= perturbed_data["original_sentence"].apply(lambda x: WordSwapping.random_swap(x,3))
         
-        # assert perturbed_data.shape[1] == 4, "Perturbed data size mismatch"
+        assert perturbed_data.shape[1] == 5, "Perturbed data size mismatch"
     # Save to CSV
     if save:
         perturbed_data.to_csv(mkdir_p(output_csv), index=False)
@@ -97,7 +108,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
 
 
 
-def sampling(data: pd.DataFrame, sample_size: int, random_state: int = 42):
+def sampling(data: pd.DataFrame, task :str, sample_size: int, random_state: int = 42):
     """
     Combines two sampling strategies:
     
@@ -115,15 +126,22 @@ def sampling(data: pd.DataFrame, sample_size: int, random_state: int = 42):
     positive_data = data[data["label"] == 1]
     negative_data = data[data["label"] == 0]
     
-    # ----- Sampling positive pair, but also checking if we satisfy sample size -----
-    if sample_size <= len(positive_data):
-        sampled_data = positive_data.sample(n=sample_size, random_state=random_state)
-    else:
-        pos_sample = positive_data.copy()
-        remaining = sample_size - len(positive_data)
-        neg_sample = negative_data.sample(n=remaining, random_state=random_state)
-        sampled_data = pd.concat([pos_sample, neg_sample]).sample(frac=1, random_state=random_state).reset_index(drop=True)
+    if task in ["Anto","anto","Antonym","jumbling", "Jumbling","jumb"]:
+        return positive_data
     
+    # ----- Sampling positive pair, but also checking if we satisfy sample size -----
+    if sample_size is None or sample_size > len(positive_data):
+        # If no sample size is provided or it exceeds the available data,
+        # return a copy of the entire dataset.
+        sampled_data = positive_data.copy()
+    else:
+        # Otherwise, randomly sample the specified number of rows.
+        sampled_data = positive_data.sample(n=sample_size, random_state=random_state)
+
+        
+    if task in ["Syn","syn","Synonym"]:
+        return sampled_data
+
     # ----- Sampling for Paraphrased Criterion -----
     # Shuffle negative pairs first
     negative_data = negative_data.reset_index(drop=True)
@@ -131,43 +149,60 @@ def sampling(data: pd.DataFrame, sample_size: int, random_state: int = 42):
     negative_data["sentence2"] = shuffled_sentence2
 
     # Determine ideal sample size per group (half of total sample size)
-    half_size = sample_size // 2
-    pos_available = len(positive_data)
-    neg_available = len(negative_data)
-    pos_sample_size = min(half_size, pos_available)
-    neg_sample_size = min(half_size, neg_available)
+    if sample_size is None:
+        pos_sample_size = len(positive_data)
+        neg_sample_size = len(negative_data)
+    else:
+        # Determine ideal sample size per group (half of total sample size)
+        half_size = sample_size // 2
+        pos_available = len(positive_data)
+        neg_available = len(negative_data)
+        pos_sample_size = min(half_size, pos_available)
+        neg_sample_size = min(half_size, neg_available)
 
-    # If there is a remainder, add extra samples from the group with more available data.
-    total_sampled = pos_sample_size + neg_sample_size
-    remainder = sample_size - total_sampled
-    if remainder > 0:
-        if (pos_available - pos_sample_size) >= (neg_available - neg_sample_size):
-            pos_sample_size += remainder
-        else:
-            neg_sample_size += remainder
+        # If there is a remainder, add extra samples from the group with more available data.
+        total_sampled = pos_sample_size + neg_sample_size
+        remainder = sample_size - total_sampled
+        if remainder > 0:
+            if (pos_available - pos_sample_size) >= (neg_available - neg_sample_size):
+                pos_sample_size += remainder
+            else:
+                neg_sample_size += remainder
 
     # Sample from each group
     sampled_positive = positive_data.sample(n=pos_sample_size, random_state=random_state)
     sampled_negative = negative_data.sample(n=neg_sample_size, random_state=random_state)
-
+    # Add a 'label' column
+    sampled_positive["label"] = 1
+    sampled_negative["label"] = 0
     # Combine and shuffle the resulting dataset
     balanced_data = pd.concat([sampled_positive, sampled_negative]).sample(frac=1, random_state=random_state).reset_index(drop=True)
     
-    return sampled_data, positive_data, balanced_data
+    if task in ["paraphrase","Paraphrase","para"]:
+        return balanced_data
+    # return sampled_data, positive_data, balanced_data
 
 
 
 if __name__ == "__main__":
-    args = get_args()
-    # perturb_sentences(**args)
-    
-    # For Testing
-    config = {
-        "dataset_name": "mrpc",
-        "task": "anto",
-        "target_lang": "en",
-        "output_dir": "./data/perturbed_dataset/",
-        "save": True,
-        "sample_size": 3500
-    }
+
+    # # For Testing
+    if sys.gettrace() is not None:
+        config = {
+            "dataset_name": "mrpc",
+            "task": "paraphrase",
+            "target_lang": "en",
+            "output_dir": "./data/perturbed_dataset/",
+            "save": True
+        }
+    else: 
+        args = get_args()
+        config = {
+            "dataset_name": args.dataset_name,
+            "task": args.task,
+            "target_lang": args.target_lang,
+            "output_dir": args.output_dir,
+            "save": args.save,
+            "sample_size": args.sample_size
+        }
     perturb_sentences(**config)

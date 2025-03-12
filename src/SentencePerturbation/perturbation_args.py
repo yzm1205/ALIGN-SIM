@@ -24,7 +24,7 @@ def get_args():
         dest="task",
         type=str,
         default="syn",
-        choices=["syn", "anto","jumb"],
+        choices=["syn", "anto","jumb","jumbling","paraphrase","para"],
         help="Perturbation task to perform.",
     )
     
@@ -55,7 +55,7 @@ def get_args():
         "--sample_size",
         dest="sample_size",
         type=int,
-        default=3500,
+        default=None,
         help="Number of rows to process.",
     )
     
