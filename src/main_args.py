@@ -10,8 +10,8 @@ def get_args():
 
     parser = ArgumentParser()
     parser.add_argument(
-        "--cf", 
-        dest="csv_file", 
+        "--perturb_dataset", 
+        dest="perturb_dataset", 
         required=True, 
         help="Name of the CSV file"
     )
@@ -27,6 +27,14 @@ def get_args():
         dest="model_name", 
         required=True, 
         help="LLM Model")
+    
+    parser.add_argument(
+        "--target_lang",
+        dest="target_lang",
+        required=True,
+        default="en",
+        help="Language for translation"
+    )
     
     parser.add_argument(
         "--save",

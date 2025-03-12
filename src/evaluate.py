@@ -34,10 +34,10 @@ from tqdm import tqdm
 # Assuming necessary imports for utils, compute_ned_distance, EmbeddingGenerator, etc.
 
 def read_pertubed_data(filename, task, lang="en"):
-    path = f"./data/perturbed_dataset/{lang}/{task}/{filename}.csv"
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"File {path} not found.")
-    return pd.read_csv(path)
+    # path = f"./data/perturbed_dataset/{lang}/{task}/{filename}.csv"
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"File {filename} not found.")
+    return pd.read_csv(filename)
 
 
 def compute_metrics(emb1, emb2):
@@ -48,17 +48,20 @@ def compute_metrics(emb1, emb2):
     dotp = np.sum(emb1 * emb2, axis=1)
     return sim, ned, ed, dotp
 
-def run(args_model, args_filename, target_lang,args_task, default_gpu="cuda", save=False):
+def run(args_model, dataset_name, target_lang,args_task, default_gpu="cuda", save=False):
     model = LLMEmbeddings(args_model, device=default_gpu)
-    data = read_pertubed_data(args_filename, args_task)
-    dataset_name = args_filename.split(".")[0] if args_task == "paraphrase" else args_filename.split("_")[0]
+    
+    pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{args_task}/{dataset_name}_{args_task}_perturbed_{target_lang}.csv" # check if path exist 
+    
+    data = read_pertubed_data(pertubed_data_path, args_task)
+    # dataset_name = dataset_name.split(".")[0] if args_task == "paraphrase" else dataset_name.split("_")[0]
     
     print(f"\n*** Model {args_model} on {dataset_name} dataset for {args_task} task ***\n")
 
     # Collect all sentences based on task
     sentences = []
     if args_task in ["Anto","anto","Antonym"]:
-        cols = ["original_sentence", "paraphrased_sentence", "antonym"]
+        cols = ["original_sentence", "paraphrased_sentence", "perturb_n1"]
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     elif args_task in ["jumbling", "Jumbling","jumb"]:
@@ -70,12 +73,12 @@ def run(args_model, args_filename, target_lang,args_task, default_gpu="cuda", sa
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     elif args_task in ["paraphrase","Paraphrase","para"]:
-        cols = ["sentence1", "sentence2"]
+        cols = ["original_sentence", "paraphrased_sentence"]
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     
     # Batch process embeddings
-    embeddings = model.generate_embedding(sentences)
+    embeddings = model.encode(sentences)
     if args_model != "chatgpt":
         embeddings = [emb.cpu().numpy() for emb in embeddings]
     embeddings = np.array(embeddings)
@@ -145,18 +148,27 @@ def run(args_model, args_filename, target_lang,args_task, default_gpu="cuda", sa
     return data
 
 if __name__ == "__main__":
-    try:    
+    if sys.gettrace() is None: 
         parser = get_args()
-        run(**parser)
-    except:
         config = {
-            "model_name": "llama3",
-            "filename": "mrpc_anto_perturbed_en",
-            "task": "anto",
-            "gpu": "cuda:2",
-            "save": False
+            "args_model": parser.model_name,
+            "dataset_name": parser.perturbed_dataset,
+            "args_task": parser.task,
+            "default_gpu": parser.gpu,
+            "save": parser.save,
+            "target_lang": parser.target_lang
+        }   
+    else:
+        config = {
+            "args_model": "llama3",
+            "dataset_name": "mrpc",
+            "args_task": "anto",
+            "default_gpu": "cuda:2",
+            "save": False,
+            "target_lang": "en"
+            
         }
-        run(**config)
+    run(**config)
     
     
     # file_path = "/home/yash/ALIGN-SIM/data/perturbed_dataset/en/anto/mrpc_anto_perturbed_en.csv"
