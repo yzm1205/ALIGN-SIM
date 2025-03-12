@@ -89,6 +89,35 @@ class LLMEmbeddings:
        
         embeddings = mean_pooling(outputs.hidden_states[-1], inputs["attention_mask"]).squeeze()
         return embeddings
+    
+    def encode_batch(self, text: Union[str, List[str]], batch_size: int = 32):
+        """Encodes input sentences into embeddings using batching."""
+        # If a single string is provided, wrap it in a list.
+        if isinstance(text, str):
+            text = [text]
+
+        embeddings_list = []
+        # Process the text in batches
+        for i in range(0, len(text), batch_size):
+            batch_text = text[i:i+batch_size]
+            inputs = self.tokenizer(
+                batch_text,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=1024,
+                return_token_type_ids=False
+            ).to(self.device)
+
+            with torch.no_grad():
+                outputs = self.model(**inputs, output_hidden_states=True, use_cache=False)
+
+            batch_embeddings = mean_pooling(outputs.hidden_states[-1], inputs["attention_mask"]).squeeze()
+            embeddings_list.append(batch_embeddings)
+
+        # Concatenate embeddings from all batches along the batch dimension.
+        embeddings = torch.cat(embeddings_list, dim=0)
+        return embeddings
 
     
 
