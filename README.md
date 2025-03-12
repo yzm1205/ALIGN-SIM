@@ -46,7 +46,7 @@ pip install -r requirements.txt
 # Usage
 
 ## Creating Sentence Perturbation Dataset
-A dataset is available for English and six other languages [Fr, es, de, zh, ja, ko]. If you want to work with a different dataset, run the code below:
+A dataset is available for English and six other languages [Fr, es, de, zh, ja, ko]. If you want to work with a different dataset, run the code below otherwise skip this step:
 
 
 ``` bash
@@ -73,7 +73,6 @@ python src/evaluate.py --model llama3
     --save True
 ```
 The script supports different models (e.g., sbert, use, simcse, gpt3-ada, llama2, etc.) and datasets (e.g., qqp, paws_wiki, mrpc, afin). We evalauted models on two metric **Cosine Similarity** and **Normalized Euclidean Distance (NED)**
-
 
 
 # Veiwing Results
