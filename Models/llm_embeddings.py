@@ -8,6 +8,7 @@ import os
 import sys
 sys.path.insert(0,"./")
 from src.utils import full_path
+from tqdm import tqdm
 
 
 dotenv.load_dotenv(os.getenv("./models/.env"))
@@ -98,7 +99,7 @@ class LLMEmbeddings:
 
         embeddings_list = []
         # Process the text in batches
-        for i in range(0, len(text), batch_size):
+        for i in tqdm(range(0, len(text), batch_size), desc="Processing Batches"):
             batch_text = text[i:i+batch_size]
             inputs = self.tokenizer(
                 batch_text,
