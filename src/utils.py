@@ -29,12 +29,12 @@ def mkdir_p(inp_dir_or_path: Union[str, Path]) -> Path:
 
 def similarity_between_sent(sent1_encoded, sent2_encoded):
     """report the avg. cosine similarity score b.w two pairs of sentences"""    
-    similarity_score = []
+    similarity_scores = []
     for i in range(len(sent1_encoded)):
-        similarity_score.append(cosine_similarity(
+        similarity_scores.append(cosine_similarity(
             sent1_encoded[i], sent2_encoded[i]))
 
-    return np.mean(similarity_score)
+    return np.mean(similarity_scores),similarity_scores
 
 
 def cosine_similarity(a, b):
