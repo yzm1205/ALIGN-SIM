@@ -7,6 +7,7 @@ import numpy as np
 import sys
 sys.path.insert(0,"./")
 from Models.SentenceTransformersModel import SentenceTransformerModels
+
 from Models.llm_embeddings import LLMEmbeddings
 from main_args import get_args
 import torch
@@ -39,16 +40,17 @@ def read_pertubed_data(filename, task, lang="en"):
         raise FileNotFoundError(f"File {filename} not found.")
     return pd.read_csv(filename)
 
-
-def compute_metrics(emb1, emb2):
+def compute_metrics(emb1, emb2,metric="cosine"):
     """Compute all metrics between two sets of embeddings."""
-    sim = utils.cosine_similarity(emb1, emb2)
-    ned = compute_ned_distance(emb1, emb2)
-    ed = np.linalg.norm(emb1 - emb2, axis=1)
-    dotp = np.sum(emb1 * emb2, axis=1)
-    return sim, ned, ed, dotp
+    # sim = utils.cosine_similarity(emb1, emb2)
+    # ned = compute_ned_distance(emb1, emb2)
+    # ed = np.linalg.norm(emb1 - emb2, axis=1)
+    # dotp = np.sum(emb1 * emb2, axis=1)
+    if metric=="cosine":
+        sim = CosineMetric(emb1,emb2)
+    return sim
 
-def run(args_model, dataset_name, target_lang,args_task, default_gpu="cuda", save=False):
+def run(args_model, dataset_name, target_lang,args_task, default_gpu="cuda", metric="cosine",save=False,batch_size=2):
     model = LLMEmbeddings(args_model, device=default_gpu)
     
     pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{args_task}/{dataset_name}_{args_task}_perturbed_{target_lang}.csv" # check if path exist 
@@ -69,7 +71,7 @@ def run(args_model, dataset_name, target_lang,args_task, default_gpu="cuda", sav
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     elif args_task in ["Syn","syn","Synonym"]:
-        cols = ["Sentence", "perturb_n1", "perturb_n2", "perturb_n3"]
+        cols = ["original_sentence", "perturb_n1", "perturb_n2", "perturb_n3"]
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     elif args_task in ["paraphrase","Paraphrase","para"]:
@@ -78,42 +80,39 @@ def run(args_model, dataset_name, target_lang,args_task, default_gpu="cuda", sav
             sentences.extend(row.values)
     
     # Batch process embeddings
-    embeddings = model.encode(sentences)
+    embeddings = model.encode_batch(sentences,batch_size=batch_size)
     if args_model != "chatgpt":
         embeddings = [emb.cpu().numpy() for emb in embeddings]
     embeddings = np.array(embeddings)
     
     # Process embeddings based on task
     if args_task == "anto":
-        emb_org, emb_para, emb_anto = np.split(embeddings, 3, axis=0)
-        
-        sim_para, ned_para, ed_para, dotp_para = compute_metrics(emb_org, emb_para)
-        sim_anto, ned_anto, ed_anto, dotp_anto = compute_metrics(emb_org, emb_anto)
-        
+        emb_org  = embeddings[0::3]  # start at 0, step by 3
+        emb_para = embeddings[1::3]  # start at 1, step by 3
+        emb_anto = embeddings[2::3]  # start at 2, step by 3
+       
+        mean_para,sim_para = utils.similarity_between_sent(emb_org, emb_para)
+        mean_anto,sim_anto = utils.similarity_between_sent(emb_org, emb_anto)
         data["sim_org_para"] = sim_para
         data["sim_org_anto"] = sim_anto
-        data["diff_org_para"] = sim_para - sim_anto
+        data["diff_org_para"] = np.array(sim_para) - np.array(sim_anto)
         
-        data["ned_org_para"] = ned_para
-        data["ned_org_anto"] = ned_anto
-        data["ned_diff_org_para"] = ned_para - ned_anto
+        print(f"""The summary for Antonym Criteria for {args_model} \n {data.describe()} """)
         
-        data["ed_org_para"] = ed_para
-        data["ed_org_anto"] = ed_anto
-        data["ed_diff_org_para"] = ed_para - ed_anto
-        
-        data["dotp_org_para"] = dotp_para
-        data["dotp_org_anto"] = dotp_anto
-        data["dotp_diff_org_anto"] = dotp_para - dotp_anto
-    
+
     elif args_task == "jumbling":
-        emb_org, emb_para, emb_n1, emb_n2, emb_n3 = np.split(embeddings, 5, axis=0)
+   
+        emb_org  = embeddings[0::5]  # start at 0, step by 3
+        emb_para = embeddings[1::5]  # start at 1, step by 3
+        emb_n1 = embeddings[2::5]  # start at 2, step by 3
+        emb_n2 = embeddings[3::5]
+        emb_n3 = embeddings[4::5]
         
         # Compute metrics for each perturbation
-        sim_para, _, _, _ = compute_metrics(emb_org, emb_para)
-        sim_n1, ned_n1, ed_n1, dotp_n1 = compute_metrics(emb_org, emb_n1)
-        sim_n2, ned_n2, ed_n2, dotp_n2 = compute_metrics(emb_org, emb_n2)
-        sim_n3, ned_n3, ed_n3, dotp_n3 = compute_metrics(emb_org, emb_n3)
+        mean_para,sim_para = utils.similarity_between_sent(emb_org, emb_para)
+        mean_n1,sim_n1 = utils.similarity_between_sent(emb_org, emb_n1)
+        mean_n2,sim_n2 = utils.similarity_between_sent(emb_org, emb_n2)
+        mean_n3,sim_n3 = utils.similarity_between_sent(emb_org, emb_n3)
         
         data["sim_org_para"] = sim_para
         data["sim_org_n1"] = sim_n1
@@ -125,26 +124,37 @@ def run(args_model, dataset_name, target_lang,args_task, default_gpu="cuda", sav
         data["diff_org_n2"] = sim_para - sim_n2
         data["diff_org_n3"] = sim_para - sim_n3
         
-        # Similar pattern for NED, ED, and dot product metrics
-        # [Additional metric calculations here...]
+        print(f"""The summary for Jumbling Criteria for {args_model} \n {data.describe()} """)
+    
     
     elif args_task == "syn":
-        emb_org, emb_s1, emb_s2, emb_s3 = np.split(embeddings, 4, axis=0)
+       
+        emb_org  = embeddings[0::4]  # start at 0, step by 3
+        emb_s1 = embeddings[1::4]  # start at 1, step by 3
+        emb_s2 = embeddings[2::4]  # start at 2, step by 3
+        emb_s3 = embeddings[3::4]
         
-        sim_s1, ned_s1, ed_s1, dotp_s1 = compute_metrics(emb_org, emb_s1)
-        sim_s2, ned_s2, ed_s2, dotp_s2 = compute_metrics(emb_org, emb_s2)
-        sim_s3, ned_s3, ed_s3, dotp_s3 = compute_metrics(emb_org, emb_s3)
+        _,sim_s1 = utils.similarity_between_sent(emb_org, emb_s1)
+        _,sim_s2 = utils.similarity_between_sent(emb_org, emb_s2)
+        _,sim_s3 = utils.similarity_between_sent(emb_org, emb_s3)
         
-        data[["sim_org_s1", "ned_org_s1", "ed_org_s1", "dotp_org_s1"]] = sim_s1, ned_s1, ed_s1, dotp_s1
-        data[["sim_org_s2", "ned_org_s2", "ed_org_s2", "dotp_org_s2"]] = sim_s2, ned_s2, ed_s2, dotp_s2
-        data[["sim_org_s3", "ned_org_s3", "ed_org_s3", "dotp_org_s3"]] = sim_s3, ned_s3, ed_s3, dotp_s3
+        data["sim_org_s1"] = sim_s1
+        data["sim_org_s2"] = sim_s2
+        data["sim_org_s3"] = sim_s3
+        
+        print(f"""The summary for Synonym Criteria for {args_model} \n {data.describe()} """)
     
     elif args_task == "paraphrase":
-        emb_s1, emb_s2 = np.split(embeddings, 2, axis=0)
-        data["sim"] = utils.cosine_similarity(emb_s1, emb_s2)
+        emb_s1  = embeddings[0::2]  # start at 0, step by 3
+        emb_s2 = embeddings[1::2] 
+        data["sim"] = utils.similarity_between_sent(emb_s1, emb_s2)
+        
+        print(f"""The summary for Paraphrase Criteria for {args_model} \n {data.describe()} """)
     
     if save:
-        data.to_csv(f"./Results/{target_lang}/{args_task}/{dataset_name}_{args_model}_{args_task}_metric.csv")
+        path = f"./Results/{target_lang}/{args_task}/{dataset_name}_{args_model}_{args_task}_metric.csv"
+        data.to_csv(path)
+        print("Data saved at path : {path} ")
     return data
 
 if __name__ == "__main__":
@@ -156,13 +166,15 @@ if __name__ == "__main__":
             "args_task": parser.task,
             "default_gpu": parser.gpu,
             "save": parser.save,
-            "target_lang": parser.target_lang
+            "target_lang": parser.target_lang,
+            "metric":parser.metric,
+            "batch_size":2
         }   
     else:
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",
-            "args_task": "anto",
+            "args_task": "syn",
             "default_gpu": "cuda:2",
             "save": False,
             "target_lang": "en"
