@@ -1,6 +1,5 @@
 from absl import logging
 
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -190,7 +189,7 @@ if __name__ == "__main__":
     if sys.gettrace() is not None:
         config = {
             "dataset_name": "mrpc",
-            "task": "paraphrase",
+            "task": "syn",
             "target_lang": "en",
             "output_dir": "./data/perturbed_dataset/",
             "save": True
