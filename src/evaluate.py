@@ -1,38 +1,18 @@
-import pandas as pd
+import argparse
+import numpy as np
 import os 
+import pandas as pd
+from tqdm import tqdm
+import torch
 import utils
 from metrics import *
-from tqdm import tqdm
-import numpy as np
 import sys
 sys.path.insert(0,"./")
 from Models.SentenceTransformersModel import SentenceTransformerModels
-
 from Models.llm_embeddings import LLMEmbeddings
 from main_args import get_args
-import torch
 from metrics import CosineMetric
 
-
-
-# CUDA_VISIBLE_DEVICE = 1
-
-
-
-"""_summary_
-
-    example:
-    llm = LLM(......)
-    function_to_call = getattr(llm,--Model_name)
-    function_to_call()
-"""
-
-
-import argparse
-import numpy as np
-from tqdm import tqdm
-
-# Assuming necessary imports for utils, compute_ned_distance, EmbeddingGenerator, etc.
 
 def read_pertubed_data(filename, task, lang="en"):
     # path = f"./data/perturbed_dataset/{lang}/{task}/{filename}.csv"
@@ -51,7 +31,9 @@ def compute_metrics(emb1, emb2,metric="cosine"):
     return sim
 
 def run(args_model, dataset_name, target_lang,args_task, default_gpu="cuda", metric="cosine",save=False,batch_size=2):
+    
     model = LLMEmbeddings(args_model, device=default_gpu)
+        
     
     pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{args_task}/{dataset_name}_{args_task}_perturbed_{target_lang}.csv" # check if path exist 
     
@@ -81,11 +63,16 @@ def run(args_model, dataset_name, target_lang,args_task, default_gpu="cuda", met
     
     # Batch process embeddings
     embeddings = model.encode_batch(sentences,batch_size=batch_size)
-    if args_model != "chatgpt":
-        embeddings = [emb.cpu().numpy() for emb in embeddings]
-    embeddings = np.array(embeddings)
-    
-    # Process embeddings based on task
+    # Ensure embeddings are on CPU and in numpy format
+    if args_model == "chatgpt":
+        # For chatgpt, embeddings is likely a list of torch tensors
+        embeddings = [emb.cpu().numpy() if isinstance(emb, torch.Tensor) else emb for emb in embeddings]
+        embeddings = np.array(embeddings)
+    else:
+        # For other models, assume a single torch tensor
+        if isinstance(embeddings, torch.Tensor):
+            embeddings = embeddings.cpu().numpy()
+        # Process embeddings based on task
     if args_task == "anto":
         emb_org  = embeddings[0::3]  # start at 0, step by 3
         emb_para = embeddings[1::3]  # start at 1, step by 3
@@ -171,6 +158,7 @@ if __name__ == "__main__":
             "batch_size":2
         }   
     else:
+        # sentence-transformers/all-MiniLM-L6-v2
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",

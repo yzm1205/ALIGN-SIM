@@ -23,6 +23,8 @@ def check_model_in_cache(model_name: str):
     
     if model_name in ["olmo","OLMo"]:
         return str(full_path("/data/shared/olmo/OLMo-7B_shard_size_2GB"))
+    
+    raise ValueError(f"Model '{model_name}' not found in local cache.")
 
 def mean_pooling(model_output, attention_mask):
     """
