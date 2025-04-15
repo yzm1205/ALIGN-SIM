@@ -19,8 +19,10 @@ def get_args():
         "--task",
         dest="task",
         required=True,
-        choices=["anto", "jumbling", "syn", "paraphrase"],
-        help="Task to perform: anto/jumbling/syn/paraphrase",
+        default="all",
+        nargs="+",
+        choices=["anto", "jumbling", "syn", "paraphrase", "all"],
+        help="Task(s) to perform: anto/jumbling/syn/paraphrase/all. Can specify multiple tasks.",
     )
     parser.add_argument(
         "--M", 
