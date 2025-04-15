@@ -23,9 +23,10 @@ def get_args():
         "--task",
         dest="task",
         type=str,
-        default="syn",
-        choices=["syn", "anto","jumb","jumbling","paraphrase","para"],
-        help="Perturbation task to perform.",
+        default="paraphrase",
+        nargs='+',
+        choices=["syn", "anto","jumb","jumbling","paraphrase","para","all"],
+        help="Perturbation task(s) to perform. Use 'all' to run all tasks or specify multiple tasks.",
     )
     
     parser.add_argument(
