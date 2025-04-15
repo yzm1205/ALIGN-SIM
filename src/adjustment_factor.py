@@ -19,7 +19,4 @@ def compute_alpha_model(rnd_similarities):
     alpha_model = 1 - (1 / (n * D_size)) * rnd_similarities.sum()
     return alpha_model
 
-# if __name__ == "__main__":
-#     llama3 = [0.30,0.472,0.495]
-#     alpha = compute_alpha_model(llama3)
-#     print(alpha)
+
