@@ -21,7 +21,7 @@ def read_pertubed_data(filename, task, dataset_name, lang="en"):
     if not os.path.exists(filename):
         print(f"Creating {task.upper()} Perturbation dataset for {dataset_name} dataset")
         perturb_sentences(dataset_name, task, save=True)
-    print("Loading the Perturbation dataset")
+    
     return pd.read_csv(filename)
 
 
@@ -52,7 +52,7 @@ def process_task(args_model, dataset_name, target_lang, task, model, default_gpu
     # Read data for this task
     pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{std_task}/{dataset_name}_{std_task}_perturbed_{target_lang}.csv"
     data = read_pertubed_data(pertubed_data_path, std_task, dataset_name, target_lang)
-    
+    print("Loaded the Perturbation dataset")
     # Collect all sentences based on task
     sentences = []
     if std_task == "anto":
@@ -147,9 +147,9 @@ def process_task(args_model, dataset_name, target_lang, task, model, default_gpu
         _, sim_s2 = utils.similarity_between_sent(emb_org, emb_s2)
         _, sim_s3 = utils.similarity_between_sent(emb_org, emb_s3)
         
-        data["sim_org_s1"] = sim_s1 * alpha
-        data["sim_org_s2"] = sim_s2 * alpha
-        data["sim_org_s3"] = sim_s3 * alpha
+        data["sim_org_s1"] = np.array(sim_s1) * alpha
+        data["sim_org_s2"] = np.array(sim_s2) * alpha
+        data["sim_org_s3"] = np.array(sim_s3) * alpha
         
         print(f"""The summary for Synonym Criteria for {args_model} \n {data.describe()} """)
     
@@ -177,14 +177,11 @@ def process_task(args_model, dataset_name, target_lang, task, model, default_gpu
         data = pd.concat([pos, rand]).sort_index()
         
         # Print summaries for positive and random pairs
-        print(f"""Summary for Positive Pairs (label=1) for {args_model}:
-{pos.describe() if len(pos) > 0 else "No positive pairs found"}""")
+        print(f"""Summary for Positive Pairs (label=1) for {args_model}: {pos.describe() if len(pos) > 0 else "No positive pairs found"}""")
         
-        print(f"""Summary for Random Pairs (label=0) for {args_model}:
-{rand.describe() if len(rand) > 0 else "No random pairs found"}""")
+        print(f"""Summary for Random Pairs (label=0) for {args_model}: {rand.describe() if len(rand) > 0 else "No random pairs found"}""")
         
-        print(f"""Overall Summary for Paraphrase Criteria for {args_model}:
-{data.describe()}""")
+        print(f"""Overall Summary for Paraphrase Criteria for {args_model}: {data.describe()}""")
     
     if save:
         path = f"./Results/{target_lang}/{std_task}/{dataset_name}_{args_model}_{std_task}_metric.csv"
@@ -244,7 +241,10 @@ def run(args_model, dataset_name, target_lang, args_task, default_gpu="cuda", me
     tasks_to_run = list(set(tasks_to_run))
     if "syn" in tasks_to_run or "negation" in tasks_to_run:
         if "paraphrase" not in tasks_to_run:
-            tasks_to_run.insert(0, "paraphrase")  # Insert at the 0th index
+            tasks_to_run.insert(0, "paraphrase")
+        elif tasks_to_run.index("paraphrase") != 0:
+            tasks_to_run.remove("paraphrase")
+            tasks_to_run.insert(0, "paraphrase")
     
     if not tasks_to_run:
         print(f"No valid tasks specified. Available tasks are: {', '.join(ALL_TASKS)}")
@@ -256,7 +256,7 @@ def run(args_model, dataset_name, target_lang, args_task, default_gpu="cuda", me
     results = {}
     successful_tasks = []
     failed_tasks = []
-    adjustment_factor = 1.0
+    adjustment_factor = 0.51
     for task in tasks_to_run:
         try:
             # print(f"\n=== Starting task: {task} ===\n")
@@ -270,11 +270,11 @@ def run(args_model, dataset_name, target_lang, args_task, default_gpu="cuda", me
                 metric=metric,
                 save=save,
                 batch_size=batch_size,
-                aplha=adjustment_factor
+                alpha=adjustment_factor
             )
             results[task] = result_df
             if task == "paraphrase":
-                rand = result_df[result_df["label"==0]]
+                rand = result_df[result_df["label"]==0]
                 adjustment_factor = 1 - rand["sim"].mean()
                 
             successful_tasks.append(task)
@@ -313,7 +313,7 @@ if __name__ == "__main__":
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",
-            "args_task": ["paraphrase","syn"],  # Multiple tasks for testing
+            "args_task": ["syn"],  # Multiple tasks for testing
             "default_gpu": "cuda:2",
             "save": False,
             "target_lang": "en",
@@ -322,3 +322,4 @@ if __name__ == "__main__":
         }
     run(**config)
     
+ 
