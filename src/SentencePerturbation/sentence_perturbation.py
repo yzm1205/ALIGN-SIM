@@ -10,9 +10,24 @@ sys.path.insert(0, "/home/yash/ALIGN-SIM/src")
 from utils import mkdir_p, full_path, read_data
 from SentencePerturbation.word_replacer import WordReplacer, WordSwapping
 import random
-from perturbation_args import get_args
 
+# Try relative import first (for module execution)
+try:
+    from .perturbation_args import get_args
+except ImportError:
+    # Fall back to direct import (for direct script execution)
+    from perturbation_args import get_args
 
+# Define all available tasks
+ALL_TASKS = ["paraphrase", "syn", "anto", "jumb"]
+# Define task aliases for standardization
+TASK_ALIASES = {
+    "syn": "syn", "Syn": "syn", "Synonym": "syn", "synonym": "syn",
+    "anto": "anto", "Anto": "anto", "Antonym": "anto", "antonym": "anto",
+    "jumb": "jumbling", "jumbling": "jumbling", "Jumbling": "jumbling", "Jumb": "jumbling",
+    "paraphrase": "paraphrase", "Paraphrase": "paraphrase", "para": "paraphrase", "Para": "paraphrase",
+    "all": "all", "All": "all", "ALL": "all"
+}
 
 def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", output_dir: str = "./data/perturbed_dataset/", sample_size: int = 3500, save :str = False) -> None:
     """
@@ -20,14 +35,18 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
 
     Args:
         dataset_name (str): ["MRPC","PAWS","QQP"]
-        task (str): ["Synonym","Antonym","Jumbling"]
+        task (str): ["syn","anto","jumb","paraphrase"]
         target_lang (str, optional): _description_. Defaults to "en".
         output_dir (str, optional): _description_. Defaults to "./data/perturbed_dataset/".
         sample_size (int, optional): _description_. Defaults to 3500.
         save (str, optional): _description_. Defaults to False.
     """
     
+    # Standardize task name
+    task = TASK_ALIASES.get(task, task)
+    
     print("--------------------------------------")
+    # print(f"Processing task: {task}")
     
     output_csv = full_path(os.path.join(output_dir, target_lang, task, f"{dataset_name}_{task}_perturbed_{target_lang}.csv"))
     if os.path.exists(output_csv):
@@ -35,18 +54,13 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         return 
     
     # TODO: make it compatible with other language datasets
-    print("Loading dataset...")
+    # print("Loading dataset...")
     data = read_data(dataset_name) 
     if "Unnamed: 0" in data.columns:
         data.drop("Unnamed: 0", axis=1, inplace=True)
     
     if "idx" in data.columns:
         data.drop("idx", axis=1, inplace=True)
-        
-    print(f"Loaded {dataset_name} dataset")
-    
-    print("--------------------------------------")
-
     
     # Initialize WordReplacer
     replacer = WordReplacer()
@@ -56,11 +70,9 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     # Create a new dataframe to store perturbed sentences
     # Sample sentences
     perturbed_data = pd.DataFrame(columns=["original_sentence"])
-    # sample_data , pos_pairs, balance_dataset  = sampling(data, sample_size)
     
-    
-    if task in ["Syn","syn","Synonym"]:
-        print("Creating Synonym perturbed data...")
+    if task == "syn":
+        print("Working...")
         sample_data = sampling(data, task, sample_size)
         perturbed_data["original_sentence"] = sample_data.sentence1
         perturbed_data["perturb_n1"] = perturbed_data["original_sentence"].apply(lambda x: replacer.sentence_replacement(x, 1, "synonyms"))
@@ -69,17 +81,18 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         
         assert perturbed_data.shape[1] == 4, "Perturbed data size mismatch"
     
-    if task in ["paraphrase","Paraphrase","para"]:
-        print("Creating Paraphrase perturbed data...")
+    elif task == "paraphrase":
+        print("Working...")
         # shuffling the negative samples
         # we also want equal number of positive and negative samples
-        perturbed_data = sampling(data, task, sample_size) # balance data
-        perturbed_data["original_sentence"] = perturbed_data.sentence1
-        perturbed_data["paraphrased_sentence"] = perturbed_data.sentence2
+        filtered_data = sampling(data, task, sample_size) # balance data
+        perturbed_data["original_sentence"] = filtered_data.sentence1
+        perturbed_data["paraphrased_sentence"] = filtered_data.sentence2
+        perturbed_data["label"] = filtered_data.label
         assert perturbed_data.shape[1] == 3, "Perturbed data size mismatch" # original_sentence, paraphrased, label
         
-    if task in ["Anto","anto","Antonym"]:
-        print("Creating Antonym perturbed data...")
+    elif task == "anto":
+        print("Working...")
         pos_pairs = sampling(data, task, sample_size)
         # Apply antonym replacement
         perturbed_data["original_sentence"] = pos_pairs.sentence1
@@ -88,8 +101,8 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         assert perturbed_data.shape[1] == 3, "Perturbed data size mismatch"
         
     # Apply jumbling
-    if task in ["jumbling", "Jumbling","jumb"]:
-        print("Creating Jumbling perturbed data...")
+    elif task == "jumb":
+        print("Working...")
         pos_pairs = sampling(data, task, sample_size)
         perturbed_data["original_sentence"] = pos_pairs.sentence1
         perturbed_data["paraphrased_sentence"] = pos_pairs.sentence2
@@ -98,6 +111,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         perturbed_data["perturb_n3"]= perturbed_data["original_sentence"].apply(lambda x: WordSwapping.random_swap(x,3))
         
         assert perturbed_data.shape[1] == 5, "Perturbed data size mismatch"
+    
     # Save to CSV
     if save:
         perturbed_data.to_csv(mkdir_p(output_csv), index=False)
@@ -121,11 +135,14 @@ def sampling(data: pd.DataFrame, task :str, sample_size: int, random_state: int 
         positive_data (pd.DataFrame): All positive samples (label == 1).
         balanced_data (pd.DataFrame): Dataset balanced between positive and negative pairs.
     """
+    # Standardize task name
+    task = TASK_ALIASES.get(task, task)
+    
     # Split the data into positive and negative pairs
     positive_data = data[data["label"] == 1]
     negative_data = data[data["label"] == 0]
     
-    if task in ["Anto","anto","Antonym","jumbling", "Jumbling","jumb"]:
+    if task in ["anto", "jumb"]:
         return positive_data
     
     # ----- Sampling positive pair, but also checking if we satisfy sample size -----
@@ -138,7 +155,7 @@ def sampling(data: pd.DataFrame, task :str, sample_size: int, random_state: int 
         sampled_data = positive_data.sample(n=sample_size, random_state=random_state)
 
         
-    if task in ["Syn","syn","Synonym"]:
+    if task == "syn":
         return sampled_data
 
     # ----- Sampling for Paraphrased Criterion -----
@@ -177,10 +194,67 @@ def sampling(data: pd.DataFrame, task :str, sample_size: int, random_state: int 
     # Combine and shuffle the resulting dataset
     balanced_data = pd.concat([sampled_positive, sampled_negative]).sample(frac=1, random_state=random_state).reset_index(drop=True)
     
-    if task in ["paraphrase","Paraphrase","para"]:
+    if task == "paraphrase":
         return balanced_data
     # return sampled_data, positive_data, balanced_data
 
+
+def run_all_tasks(dataset_name: str, tasks: list, target_lang:str ="en", output_dir: str = "./data/perturbed_dataset/", sample_size: int = 3500, save :str = False) -> None:
+    """
+    Run perturb_sentences for multiple tasks or all tasks
+    
+    Args:
+        dataset_name (str): Dataset name
+        tasks (list): List of tasks to run, or ["all"] to run all tasks
+        target_lang (str, optional): Target language. Defaults to "en".
+        output_dir (str, optional): Output directory. Defaults to "./data/perturbed_dataset/".
+        sample_size (int, optional): Sample size. Defaults to 3500.
+        save (bool, optional): Whether to save output. Defaults to False.
+    """
+    
+    # If "all" is in tasks, run all available tasks
+    if "all" in tasks:
+        tasks_to_run = ALL_TASKS
+    else:
+        # Standardize task names
+        tasks_to_run = []
+        for task in tasks:
+            standardized_task = TASK_ALIASES.get(task, None)
+            if standardized_task is None:
+                print(f"Warning: Unknown task '{task}'. Skipping.")
+            else:
+                tasks_to_run.append(standardized_task)
+                
+        # Remove duplicates
+        tasks_to_run = list(set(tasks_to_run))
+    
+    if not tasks_to_run:
+        print("No valid tasks specified. Available tasks are:", ", ".join(ALL_TASKS))
+        return
+        
+    print(f"Running the following tasks: {tasks_to_run}")
+    
+    successful_tasks = []
+    failed_tasks = []
+    
+    for task in tasks_to_run:
+        try:
+            perturb_sentences(
+                dataset_name=dataset_name,
+                task=task,
+                target_lang=target_lang,
+                output_dir=output_dir,
+                sample_size=sample_size,
+                save=save
+            )
+            successful_tasks.append(task)
+        except Exception as e:
+            print(f"Error processing task '{task}': {str(e)}")
+            failed_tasks.append(task)
+            
+    if failed_tasks:
+        print(f"Failed tasks: {failed_tasks}")
+    print("=====================")
 
 
 if __name__ == "__main__":
@@ -189,7 +263,7 @@ if __name__ == "__main__":
     if sys.gettrace() is not None:
         config = {
             "dataset_name": "mrpc",
-            "task": "syn",
+            "tasks": ["jumbling"],
             "target_lang": "en",
             "output_dir": "./data/perturbed_dataset/",
             "save": True
@@ -198,10 +272,11 @@ if __name__ == "__main__":
         args = get_args()
         config = {
             "dataset_name": args.dataset_name,
-            "task": args.task,
+            "tasks": args.task,  # This is now a list
             "target_lang": args.target_lang,
             "output_dir": args.output_dir,
             "save": args.save,
             "sample_size": args.sample_size
         }
-    perturb_sentences(**config)
+    
+    run_all_tasks(**config)
