@@ -132,6 +132,6 @@ if __name__ == "__main__":
     llm = LLMEmbeddings(model_name="llama3", device=device)
 
     # Encode text into embeddings
-    embedding = llm.encode("Hugging Face models are powerful!")
+    embedding = llm.encode_batch("Hugging Face models are powerful!")
     print(embedding.shape)
     print("Done!!")
