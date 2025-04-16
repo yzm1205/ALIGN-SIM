@@ -6,8 +6,8 @@ import os
 import pandas as pd
 import re
 import sys
-sys.path.insert(0, "/home/yash/ALIGN-SIM/src")
-from utils import mkdir_p, full_path, read_data
+sys.path.insert(0, "./src/")
+# from utils import read_data
 from SentencePerturbation.word_replacer import WordReplacer, WordSwapping
 import random
 
@@ -42,6 +42,8 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         sample_size (int, optional): _description_. Defaults to 3500.
         save (str, optional): _description_. Defaults to False.
     """
+    # Import utils functions inside the function to avoid circular imports
+    from utils import mkdir_p, full_path, read_data
     
     # Standardize task name
     task = TASK_ALIASES.get(task, task)
@@ -137,7 +139,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         assert perturbed_data.shape[1] == 3, "Perturbed data size mismatch"
         
     # Apply jumbling
-    elif task == "jumb":
+    elif task == "jumbling":
         print("Working...")
         data = read_data(dataset_name) 
         if "Unnamed: 0" in data.columns:
