@@ -7,6 +7,8 @@ from typing import Union
 import requests
 from urllib.parse import urlparse
 import json
+from src.SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
+
 
 def delete_file(file_pt: Path) -> None:
     try:
@@ -29,25 +31,6 @@ def mkdir_p(inp_dir_or_path: Union[str, Path]) -> Path:
         inp_dir_or_path.mkdir(parents=True, exist_ok=True)
     return inp_dir_or_path
 
-def similarity_between_sent(sent1_encoded, sent2_encoded):
-    """report the avg. cosine similarity score b.w two pairs of sentences"""    
-    similarity_scores = []
-    for i in range(len(sent1_encoded)):
-        similarity_scores.append(cosine_similarity(
-            sent1_encoded[i], sent2_encoded[i]))
-
-    return np.mean(similarity_scores),similarity_scores
-
-
-def cosine_similarity(a, b):
-    """
-Takes 2 vectors a, b and returns the cosine similarity according 
-    to the definition of the dot product
-    """
-    dot_product = np.dot(a, b)
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
-    return dot_product / (norm_a * norm_b)
 
 def load_data(path):
     if path.endswith(".csv"):
@@ -75,16 +58,41 @@ def read_data(dataset):
         path = "./data/original_datasets/En/paw_wiki.tsv"
         data = load_data(path)
         data = data.copy()
-        
-    # elif dataset in ["afin","negation"]:
-    #     path = "./data/original_datasets/En/afin.jsonl"
-        
-    
+            
     else:
         ValueError("No dataset found.")
                 
     return data
 
+def read_pertubed_data(filename, task, dataset_name, sample_size, lang="en"):
+    """
+    Read perturbed data from a file, or create it if it doesn't exist.
+    
+    Args:
+        filename (str): Path to the perturbed data file (CSV format)
+        task (str): Perturbation task name (e.g., "negation", "syn", "jumbling", "anto", "paraphrase")
+        dataset_name (str): Name of the dataset to perturb (e.g., "mrpc", "qqp", "paws")
+        sample_size (int): Maximum number of samples to include in the dataset
+        lang (str, optional): Language code for the perturbation. Defaults to "en".
+        
+    Returns:
+        pandas.DataFrame: The perturbed dataset with appropriate columns depending on the task:
+            - negation: "sentence1" and "sentence2" columns
+            - syn: "original_sentence", "perturb_n1", "perturb_n2", "perturb_n3" columns
+            - anto: "original_sentence", "paraphrased_sentence", "perturb_n1" columns
+            - jumbling: "original_sentence", "paraphrased_sentence", "perturb_n1", "perturb_n2", "perturb_n3" columns
+            - paraphrase: "original_sentence", "paraphrased_sentence", "label" columns
+    """
+    # For the negation task, we use the AFIN dataset
+    if task == "negation":
+        return get_afin_data(output_path=filename, sample_size=sample_size)
+
+    # For other tasks, we check if the file exists, and if not, create the perturbed dataset
+    if not os.path.exists(filename):
+        perturb_sentences(dataset_name, task, target_lang=lang, save=True, sample_size=sample_size)
+    
+    # Load and return the dataset
+    return pd.read_csv(filename)
 
 def download_afin_dataset(filename=None, output_path="."):
     """
@@ -213,22 +221,3 @@ def get_afin_data(output_path="./data/perturbed_dataset/en/negation/afin.csv", j
         print(f"Error processing AFIN data: {str(e)}")
         return pd.DataFrame(columns=["sentence1", "sentence2"])
 
-if __name__ == "__main__":
-    # Test the AFIN dataset download and processing
-    print("Testing AFIN dataset handling with consolidated function...")
-    
-    # Use the consolidated function that handles the entire workflow
-    afin_data = get_afin_data(
-        output_path="./data/perturbed_dataset/en/negation/afin.csv", 
-        jsonl_path="./data/original_datasets/En/afin.jsonl",
-        sample_size=100,  # Use a small sample for testing
-        save=True
-    )
-    
-    # Display some statistics and samples
-    if not afin_data.empty:
-        print(f"Successfully loaded AFIN dataset with {len(afin_data)} rows")
-        print("\nSample data:")
-        print(afin_data.head(3))
-    else:
-        print("Failed to load AFIN dataset or dataset is empty")
