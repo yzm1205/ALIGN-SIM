@@ -7,7 +7,7 @@ from typing import Union
 import requests
 from urllib.parse import urlparse
 import json
-from src.SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
+from SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
 
 
 def delete_file(file_pt: Path) -> None:
