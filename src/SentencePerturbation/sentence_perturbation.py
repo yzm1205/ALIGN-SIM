@@ -19,13 +19,14 @@ except ImportError:
     from perturbation_args import get_args
 
 # Define all available tasks
-ALL_TASKS = ["paraphrase", "syn", "anto", "jumb"]
+ALL_TASKS = ["paraphrase", "syn", "anto", "jumb", "negation"]
 # Define task aliases for standardization
 TASK_ALIASES = {
     "syn": "syn", "Syn": "syn", "Synonym": "syn", "synonym": "syn",
     "anto": "anto", "Anto": "anto", "Antonym": "anto", "antonym": "anto",
     "jumb": "jumbling", "jumbling": "jumbling", "Jumbling": "jumbling", "Jumb": "jumbling",
     "paraphrase": "paraphrase", "Paraphrase": "paraphrase", "para": "paraphrase", "Para": "paraphrase",
+    "neg":"negation","afin":"negation","Negation":"negation","negation":"negation",
     "all": "all", "All": "all", "ALL": "all"
 }
 
@@ -35,7 +36,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
 
     Args:
         dataset_name (str): ["MRPC","PAWS","QQP"]
-        task (str): ["syn","anto","jumb","paraphrase"]
+        task (str): ["syn","anto","jumb","paraphrase","negation"]
         target_lang (str, optional): _description_. Defaults to "en".
         output_dir (str, optional): _description_. Defaults to "./data/perturbed_dataset/".
         sample_size (int, optional): _description_. Defaults to 3500.
@@ -47,20 +48,16 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     
     print("--------------------------------------")
     # print(f"Processing task: {task}")
-    
-    output_csv = full_path(os.path.join(output_dir, target_lang, task, f"{dataset_name}_{task}_perturbed_{target_lang}.csv"))
+    if task == "negation": 
+        output_csv = full_path(os.path.join(output_dir, target_lang, task, f"{dataset_name}.csv"))
+    else:
+        output_csv = full_path(os.path.join(output_dir, target_lang, task, f"{dataset_name}_{task}_perturbed_{target_lang}.csv"))
     if os.path.exists(output_csv):
         print(f"File already exists at: {output_csv}")
         return 
     
     # TODO: make it compatible with other language datasets
     # print("Loading dataset...")
-    data = read_data(dataset_name) 
-    if "Unnamed: 0" in data.columns:
-        data.drop("Unnamed: 0", axis=1, inplace=True)
-    
-    if "idx" in data.columns:
-        data.drop("idx", axis=1, inplace=True)
     
     # Initialize WordReplacer
     replacer = WordReplacer()
@@ -68,11 +65,36 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     random.seed(42)
     
     # Create a new dataframe to store perturbed sentences
-    # Sample sentences
     perturbed_data = pd.DataFrame(columns=["original_sentence"])
     
-    if task == "syn":
+    if task == "negation":
+        print("Processing negation data...")
+        # Use the consolidated function to get AFIN data
+        try:
+            from utils import get_afin_data
+            
+            # If sample_size is specified, limit the data
+            afin_data = get_afin_data(
+                output_path=output_csv,
+                sample_size=sample_size,
+                save=save
+            )
+            
+            perturbed_data = afin_data
+            
+        except Exception as e:
+            print(f"Error processing AFIN dataset: {str(e)}")
+            return
+    
+    elif task == "syn":
         print("Working...")
+        data = read_data(dataset_name) 
+        if "Unnamed: 0" in data.columns:
+            data.drop("Unnamed: 0", axis=1, inplace=True)
+        
+        if "idx" in data.columns:
+            data.drop("idx", axis=1, inplace=True)
+            
         sample_data = sampling(data, task, sample_size)
         perturbed_data["original_sentence"] = sample_data.sentence1
         perturbed_data["perturb_n1"] = perturbed_data["original_sentence"].apply(lambda x: replacer.sentence_replacement(x, 1, "synonyms"))
@@ -85,6 +107,13 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         print("Working...")
         # shuffling the negative samples
         # we also want equal number of positive and negative samples
+        data = read_data(dataset_name) 
+        if "Unnamed: 0" in data.columns:
+            data.drop("Unnamed: 0", axis=1, inplace=True)
+        
+        if "idx" in data.columns:
+            data.drop("idx", axis=1, inplace=True)
+            
         filtered_data = sampling(data, task, sample_size) # balance data
         perturbed_data["original_sentence"] = filtered_data.sentence1
         perturbed_data["paraphrased_sentence"] = filtered_data.sentence2
@@ -93,6 +122,13 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         
     elif task == "anto":
         print("Working...")
+        data = read_data(dataset_name) 
+        if "Unnamed: 0" in data.columns:
+            data.drop("Unnamed: 0", axis=1, inplace=True)
+        
+        if "idx" in data.columns:
+            data.drop("idx", axis=1, inplace=True)
+            
         pos_pairs = sampling(data, task, sample_size)
         # Apply antonym replacement
         perturbed_data["original_sentence"] = pos_pairs.sentence1
@@ -103,6 +139,13 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     # Apply jumbling
     elif task == "jumb":
         print("Working...")
+        data = read_data(dataset_name) 
+        if "Unnamed: 0" in data.columns:
+            data.drop("Unnamed: 0", axis=1, inplace=True)
+        
+        if "idx" in data.columns:
+            data.drop("idx", axis=1, inplace=True)
+            
         pos_pairs = sampling(data, task, sample_size)
         perturbed_data["original_sentence"] = pos_pairs.sentence1
         perturbed_data["paraphrased_sentence"] = pos_pairs.sentence2
