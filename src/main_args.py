@@ -10,8 +10,8 @@ def get_args():
 
     parser = ArgumentParser()
     parser.add_argument(
-        "--perturb_dataset", 
-        dest="perturb_dataset", 
+        "--dataset", 
+        dest="dataset", 
         required=True, 
         help="Name of the CSV file"
     )
@@ -21,7 +21,7 @@ def get_args():
         required=True,
         default="all",
         nargs="+",
-        choices=["anto", "jumbling", "syn", "paraphrase", "all"],
+        choices=["anto", "jumbling", "syn", "paraphrase","negation", "all"],
         help="Task(s) to perform: anto/jumbling/syn/paraphrase/all. Can specify multiple tasks.",
     )
     parser.add_argument(
@@ -33,7 +33,6 @@ def get_args():
     parser.add_argument(
         "--target_lang",
         dest="target_lang",
-        required=True,
         default="en",
         help="Language for translation"
     )
@@ -67,5 +66,13 @@ def get_args():
         default="cosine",
         choices=["cosine","ned","both"],
         help="Metric to use for comparison",
+    )
+    
+    parser.add_argument(
+        "--sample_size",
+        dest="sample_size",
+        type=int,
+        default=None,
+        help="Number of rows to process.",
     )
     return parser.parse_args()
