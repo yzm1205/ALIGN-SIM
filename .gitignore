@@ -3,3 +3,6 @@
 /src/__pycache__
 *.pyc
 src/*.ipynb
+./Results/*
+./Models/.env
+./data/original_datasets/En/afin.jsonl
