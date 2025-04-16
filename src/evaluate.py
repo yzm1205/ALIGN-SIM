@@ -5,7 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 import torch
 import utils
-from utils import mkdir_p, get_afin_data
+from utils import mkdir_p, get_afin_data, read_pertubed_data
 from metrics import *
 import sys
 sys.path.insert(0,"./")
@@ -14,39 +14,6 @@ from Models.llm_embeddings import LLMEmbeddings
 from main_args import get_args
 from metrics import CosineMetric
 from src.SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
-
-
-
-def read_pertubed_data(filename, task, dataset_name, sample_size, lang="en"):
-    """
-    Read perturbed data from a file, or create it if it doesn't exist.
-    
-    Args:
-        filename (str): Path to the perturbed data file
-        task (str): Perturbation task name (e.g., "negation", "syn", "jumbling")
-        dataset_name (str): Name of the dataset to perturb
-        lang (str): Language code, default is "en"
-        
-    Returns:
-        pandas.DataFrame: The perturbed dataset
-    """
-    # For the negation task, we use the AFIN dataset
-    if task == "negation":
-        return get_afin_data(output_path=filename, sample_size=sample_size)
-
-    # For other tasks, we check if the file exists, and if not, create the perturbed dataset
-    if not os.path.exists(filename):
-        # print(f"Creating {task.upper()} Perturbation dataset for {dataset_name} dataset")
-        # # Create directory if it doesn't exist
-        # output_dir = os.path.dirname(filename)
-        # if not os.path.exists(output_dir):
-        #     os.makedirs(output_dir, exist_ok=True)
-        
-        # Generate and save the perturbed dataset
-        perturb_sentences(dataset_name, task, target_lang=lang, save=True, sample_size=sample_size)
-    
-    # Load and return the dataset
-    return pd.read_csv(filename)
 
 
 def process_task(args_model, dataset_name, target_lang, task, model, sample_size, default_gpu="cuda", metric="cosine", save=False, batch_size=2,alpha=1.0):
@@ -70,6 +37,9 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
     """
     print(f"\n*** Processing {task} task with {args_model} on {dataset_name} dataset ***\n")
     
+    if metric == "cosine":
+        metric = CosineMetric()
+    
     # Get standardized task name
     std_task = task
     
@@ -78,6 +48,7 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{std_task}/{dataset_name}.csv"
     else:
         pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{std_task}/{dataset_name}_{std_task}_perturbed_{target_lang}.csv"
+        
     data = read_pertubed_data(pertubed_data_path, std_task, dataset_name, sample_size, target_lang)
     print("Loaded the Perturbation dataset")
     # Collect all sentences based on task
@@ -110,8 +81,7 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
             rand_sentences.extend(row.values)
         
         # Combine all sentences while keeping track of indices
-        sentences = pos_sentences + rand_sentences
-    
+        sentences = pos_sentences + rand_sentences  
     elif std_task == "negation":
         # Extract the original and negated sentences
         cols = ["sentence1", "sentence2"]
@@ -222,7 +192,9 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         emb_neg = embeddings[1::2]   # start at 1, step by 2
         
         # Calculate similarities between original and negated sentences
-        mean_sim, sim_scores = utils.similarity_between_sent(emb_orig, emb_neg)
+        # mean_sim, sim_scores = utils.similarity_between_sent(emb_orig, emb_neg)
+        mean_sim, sim_scores = metric.compute(emb_orig, emb_neg)
+        
         
         # Add similarity scores to dataframe
         data["similarity"] = np.array(sim_scores) 
@@ -369,7 +341,7 @@ if __name__ == "__main__":
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",
-            "args_task": ["anto","syn"],  # Testing the negation task
+            "args_task": ["all"],  # Testing the negation task
             "default_gpu": "cuda:2",
             "save": True,
             "target_lang": "en",
@@ -381,9 +353,10 @@ if __name__ == "__main__":
     
     # Testing:
     """
-    1) Individual criterion
+    1) Individual criterion : Done
     2) All criterion
-    3) Different metric
+        if user passes all
+    3) Different metric : Done
     
     """
  
