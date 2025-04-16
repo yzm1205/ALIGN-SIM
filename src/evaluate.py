@@ -5,7 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 import torch
 import utils
-from utils import mkdir_p
+from utils import mkdir_p, get_afin_data
 from metrics import *
 import sys
 sys.path.insert(0,"./")
@@ -16,16 +16,40 @@ from metrics import CosineMetric
 from src.SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
 
 
-def read_pertubed_data(filename, task, dataset_name, lang="en"):
-    # path = f"./data/perturbed_dataset/{lang}/{task}/{filename}.csv"
-    if not os.path.exists(filename):
-        print(f"Creating {task.upper()} Perturbation dataset for {dataset_name} dataset")
-        perturb_sentences(dataset_name, task, save=True)
+
+def read_pertubed_data(filename, task, dataset_name, sample_size, lang="en"):
+    """
+    Read perturbed data from a file, or create it if it doesn't exist.
     
+    Args:
+        filename (str): Path to the perturbed data file
+        task (str): Perturbation task name (e.g., "negation", "syn", "jumbling")
+        dataset_name (str): Name of the dataset to perturb
+        lang (str): Language code, default is "en"
+        
+    Returns:
+        pandas.DataFrame: The perturbed dataset
+    """
+    # For the negation task, we use the AFIN dataset
+    if task == "negation":
+        return get_afin_data(output_path=filename, sample_size=sample_size)
+
+    # For other tasks, we check if the file exists, and if not, create the perturbed dataset
+    if not os.path.exists(filename):
+        # print(f"Creating {task.upper()} Perturbation dataset for {dataset_name} dataset")
+        # # Create directory if it doesn't exist
+        # output_dir = os.path.dirname(filename)
+        # if not os.path.exists(output_dir):
+        #     os.makedirs(output_dir, exist_ok=True)
+        
+        # Generate and save the perturbed dataset
+        perturb_sentences(dataset_name, task, target_lang=lang, save=True, sample_size=sample_size)
+    
+    # Load and return the dataset
     return pd.read_csv(filename)
 
 
-def process_task(args_model, dataset_name, target_lang, task, model, default_gpu="cuda", metric="cosine", save=False, batch_size=2,alpha=1.0):
+def process_task(args_model, dataset_name, target_lang, task, model, sample_size, default_gpu="cuda", metric="cosine", save=False, batch_size=2,alpha=1.0):
     """
     Process embeddings and compute metrics for a specific task
     
@@ -50,8 +74,11 @@ def process_task(args_model, dataset_name, target_lang, task, model, default_gpu
     std_task = task
     
     # Read data for this task
-    pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{std_task}/{dataset_name}_{std_task}_perturbed_{target_lang}.csv"
-    data = read_pertubed_data(pertubed_data_path, std_task, dataset_name, target_lang)
+    if task == "negation":
+        pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{std_task}/{dataset_name}.csv"
+    else:
+        pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{std_task}/{dataset_name}_{std_task}_perturbed_{target_lang}.csv"
+    data = read_pertubed_data(pertubed_data_path, std_task, dataset_name, sample_size, target_lang)
     print("Loaded the Perturbation dataset")
     # Collect all sentences based on task
     sentences = []
@@ -84,6 +111,12 @@ def process_task(args_model, dataset_name, target_lang, task, model, default_gpu
         
         # Combine all sentences while keeping track of indices
         sentences = pos_sentences + rand_sentences
+    
+    elif std_task == "negation":
+        # Extract the original and negated sentences
+        cols = ["sentence1", "sentence2"]
+        for _, row in data[cols].iterrows():
+            sentences.extend(row.values)
     
     
     # Batch process embeddings
@@ -183,16 +216,35 @@ def process_task(args_model, dataset_name, target_lang, task, model, default_gpu
         
         print(f"""Overall Summary for Paraphrase Criteria for {args_model}: {data.describe()}""")
     
+    elif std_task == "negation":
+        # Process embeddings for negation task
+        emb_orig = embeddings[0::2]  # start at 0, step by 2
+        emb_neg = embeddings[1::2]   # start at 1, step by 2
+        
+        # Calculate similarities between original and negated sentences
+        mean_sim, sim_scores = utils.similarity_between_sent(emb_orig, emb_neg)
+        
+        # Add similarity scores to dataframe
+        data["similarity"] = np.array(sim_scores) 
+        
+        print(f"""Detailed Statistics: {data.describe()}""")
+    
     if save:
         path = f"./Results/{target_lang}/{std_task}/{dataset_name}_{args_model}_{std_task}_metric.csv"
+        summary_text = f"./Results/{target_lang}/{std_task}/{dataset_name}_{args_model}_{std_task}.txt"
         mkdir_p(os.path.dirname(path))
+        mkdir_p(os.path.dirname(summary_text))
+        with open(summary_text, "a", encoding='utf-8') as file: #added encoding
+            file.write(f"The summary of {std_task} criterion on {dataset_name} dataset for {args_model} model: \n")
+            file.write(str(data.describe()) + "\n")  # Added a newline for better formatting
+        print(f"Summary appended to: {summary_text}")
         data.to_csv(path)
         print(f"Data saved at path: {path}")
     
     return data
 
 
-def run(args_model, dataset_name, target_lang, args_task, default_gpu="cuda", metric="cosine", save=False, batch_size=2):
+def run(args_model, dataset_name, target_lang, args_task, sample_size, default_gpu="cuda", metric="cosine", save=False, batch_size=2):
     """
     Run evaluation on specified tasks
     
@@ -210,7 +262,7 @@ def run(args_model, dataset_name, target_lang, args_task, default_gpu="cuda", me
         If a single task is specified, returns the dataframe for that task
         If multiple tasks are specified, returns a dictionary mapping tasks to their result dataframes
     """
-    print(f"\n*** Starting evaluation with model {args_model} on {dataset_name} dataset ***\n")
+    print(f"\n*** Starting evaluation with {args_model} model on {dataset_name} dataset ***\n")
     
     # Initialize model
     model = LLMEmbeddings(args_model, device=default_gpu)
@@ -239,7 +291,9 @@ def run(args_model, dataset_name, target_lang, args_task, default_gpu="cuda", me
     
     # Remove duplicates
     tasks_to_run = list(set(tasks_to_run))
-    if "syn" in tasks_to_run or "negation" in tasks_to_run:
+    
+    # In order to remove the randomness from the model, we need to calculate alpha. 
+    if "syn" in tasks_to_run:# or "negation" in tasks_to_run:
         if "paraphrase" not in tasks_to_run:
             tasks_to_run.insert(0, "paraphrase")
         elif tasks_to_run.index("paraphrase") != 0:
@@ -256,7 +310,7 @@ def run(args_model, dataset_name, target_lang, args_task, default_gpu="cuda", me
     results = {}
     successful_tasks = []
     failed_tasks = []
-    adjustment_factor = 0.51
+    adjustment_factor = 1.0
     for task in tasks_to_run:
         try:
             # print(f"\n=== Starting task: {task} ===\n")
@@ -270,7 +324,8 @@ def run(args_model, dataset_name, target_lang, args_task, default_gpu="cuda", me
                 metric=metric,
                 save=save,
                 batch_size=batch_size,
-                alpha=adjustment_factor
+                alpha=adjustment_factor,
+                sample_size=sample_size
             )
             results[task] = result_df
             if task == "paraphrase":
@@ -299,27 +354,36 @@ if __name__ == "__main__":
         parser = get_args()
         config = {
             "args_model": parser.model_name,
-            "dataset_name": parser.perturbed_dataset,
+            "dataset_name": parser.dataset,
             "args_task": parser.task,  # This is now handled as a list in the run function
             "default_gpu": parser.gpu,
             "save": parser.save,
             "target_lang": parser.target_lang,
             "metric": parser.metric,
-            "batch_size": 2
+            "batch_size": parser.batch_size,
+            "sample_size": parser.sample_size
         }   
     else:
         # For debugging/testing - try multiple tasks
-        
+        # TODO: Need to handle multiple dataset entry. if afin is provided then only negation task is executed. 
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",
-            "args_task": ["syn"],  # Multiple tasks for testing
+            "args_task": ["anto","syn"],  # Testing the negation task
             "default_gpu": "cuda:2",
-            "save": False,
+            "save": True,
             "target_lang": "en",
             "metric": "cosine",
-            "batch_size": 2
+            "batch_size": 2,
+            "sample_size":3500
         }
     run(**config)
     
+    # Testing:
+    """
+    1) Individual criterion
+    2) All criterion
+    3) Different metric
+    
+    """
  
