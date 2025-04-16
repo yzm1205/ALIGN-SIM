@@ -75,10 +75,9 @@ python src/evaluate.py --model meta-llama/Meta-Llama-3-8B
 ```
 The script supports different models (e.g., sbert, use, simcse, gpt3-ada, llama2, etc.) and datasets (e.g., **qqp, paws_wiki, mrpc, afin**). We evaluate models on five criteria (e.g. **paraphrase, synonym, antonym, negation, and jumbling**). We measure models on two metric **Cosine Similarity** and **Normalized Euclidean Distance (NED)**
 
+<!-- # Viewing Results
 
-[# Viewing Results
-
-Evaluation results—such as similarity scores, normalized distances, and histograms—are saved in the `Results/`. Use the provided Jupyter notebooks in the `src/PlotAndTables.ipynb` folder to explore and visualize the performance of different models across the evaluation criteria.]: #
+Evaluation results—such as similarity scores, normalized distances, and histograms—are saved in the `Results/`. Use the provided Jupyter notebooks in the `src/PlotAndTables.ipynb` folder to explore and visualize the performance of different models across the evaluation criteria. -->
 
 
 # Citation
