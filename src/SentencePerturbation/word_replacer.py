@@ -1,8 +1,9 @@
 import types
 import nltk
+nltk.download('wordnet')
+nltk.download('stopwords')
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet
-nltk.download('wordnet')
 import pandas as pd
 import random
 
