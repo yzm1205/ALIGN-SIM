@@ -207,6 +207,9 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         mkdir_p(os.path.dirname(path))
         mkdir_p(os.path.dirname(summary_text))
         with open(summary_text, "a", encoding='utf-8') as file: #added encoding
+            if std_task == "paraphrase":
+                file.write(f"""Summary for Positive Pairs (label=1) for {args_model}: {pos.describe() if len(pos) > 0 else "No positive pairs found"}\n""")
+                file.write(f"""Summary for Random Pairs (label=0) for {args_model}: {rand.describe() if len(rand) > 0 else "No random pairs found"}\n""")
             file.write(f"The summary of {std_task} criterion on {dataset_name} dataset for {args_model} model: \n")
             file.write(str(data.describe()) + "\n")  # Added a newline for better formatting
         print(f"Summary appended to: {summary_text}")
