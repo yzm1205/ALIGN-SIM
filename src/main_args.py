@@ -25,7 +25,7 @@ def get_args():
         help="Task(s) to perform: anto/jumbling/syn/paraphrase/all. Can specify multiple tasks.",
     )
     parser.add_argument(
-        "--M", 
+        "--model", 
         dest="model_name", 
         required=True, 
         help="LLM Model")
@@ -47,7 +47,7 @@ def get_args():
     parser.add_argument(
         "--gpu", 
         dest="gpu", 
-        default="auto", 
+        default="cuda:0", 
         help="GPU to run the model"
     )
     
