@@ -49,7 +49,7 @@ pip install huggingface_hub
 huggingface-cli login
 # Paste your token here
 ```
-For more information
+For more information [HuggingFace CLI](https://huggingface.co/docs/huggingface_hub/en/guides/cli)
 
 
 # Usage
