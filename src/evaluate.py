@@ -41,7 +41,7 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         metric = CosineMetric()
     
     # Get standardized task name
-    std_task = task
+    std_task = TASK_ALIASES.get(task, task)
     
     # Read data for this task
     if task == "negation":
@@ -341,7 +341,7 @@ if __name__ == "__main__":
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",
-            "args_task": ["all"],  # Testing the negation task
+            "args_task": ["jumb"],  # Testing the negation task
             "default_gpu": "cuda:2",
             "save": True,
             "target_lang": "en",
@@ -357,6 +357,8 @@ if __name__ == "__main__":
     2) All criterion
         if user passes all
     3) Different metric : Done
+    4) Check sampling: check paraphraase and other criteria. may be we need to 2* sampling for paraphrase. 
+    4) test on other device. check requirnments. 
     
     """
  

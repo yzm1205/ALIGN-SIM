@@ -48,6 +48,9 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     # Standardize task name
     task = TASK_ALIASES.get(task, task)
     
+    # if os.path.splitext(dataset_name)[1] in [".csv",".tsv"]:
+    #     dataset_name = os.path.splitext(dataset_name)[0]
+    
     print("--------------------------------------")
     # print(f"Processing task: {task}")
     if task == "negation": 

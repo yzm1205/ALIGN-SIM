@@ -42,25 +42,39 @@ def load_data(path):
         raise ValueError("Data should be in pandas DataFrame format")   
     return data
 
-def read_data(dataset):
-    if dataset == "mrpc":
+def read_data(dataset_or_path ):
+    
+    if not isinstance(dataset_or_path , str):
+        raise TypeError(f"Path must be a string, received type: {type(path)}")
+    
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Dataset file not found at path: {path}")
+    
+    # Determine separator based on file extension (case-insensitive)
+    file_ext = os.path.splitext(path)[1].lower()
+    
+    if dataset_or_path  == "mrpc":
         data = load_data("./data/original_datasets/En/mrpc.csv")
         data = data.copy()
         
-    elif dataset == "qqp":    
+    elif dataset_or_path == "qqp":    
         data = load_data("./data/original_datasets/En/qoura.csv")
         data = data.copy().dropna()
         # handling irregularities in columns names
         data.columns = data.columns.str.strip()
         data = data.rename(columns={"is_duplicate":"label",'question1':"sentence1","question2":"sentence2"})
     
-    elif dataset in ["paws","paw","wiki"]:
+    elif dataset_or_path in ["paws","paw","wiki"]:
         path = "./data/original_datasets/En/paw_wiki.tsv"
         data = load_data(path)
         data = data.copy()
-            
+        
+    elif file_ext == ".csv":
+        data = pd.read_csv(path)
+    elif file_ext == ".tsv":
+        data = pd.read_csv(path, sep="\t")
     else:
-        ValueError("No dataset found.")
+        raise ValueError(f"Unsupported file type '{file_ext}'. Only '.csv' and '.tsv' are supported by load_data.")
                 
     return data
 

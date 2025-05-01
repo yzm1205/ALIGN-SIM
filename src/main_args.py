@@ -21,7 +21,7 @@ def get_args():
         required=True,
         default="all",
         nargs="+",
-        choices=["anto", "jumbling", "syn", "paraphrase","negation", "all"],
+        choices=["anto", "antonym", "jumbling","jumb" ,"syn","synonym", "paraphrase","negation", "all"],
         help="Task(s) to perform: anto/jumbling/syn/paraphrase/all. Can specify multiple tasks.",
     )
     parser.add_argument(
