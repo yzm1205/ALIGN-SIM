@@ -43,6 +43,15 @@ cd ALIGN-SIM
 pip install -r requirements.txt
 ```
 
+Setup your HuggingFace Token to access models:
+```
+pip install huggingface_hub
+huggingface-cli login
+# Paste your token here
+```
+For more information [HuggingFace CLI](https://huggingface.co/docs/huggingface_hub/en/guides/cli)
+
+
 # Usage
 
 ## Creating Sentence Perturbation Dataset [Optional]
@@ -55,7 +64,7 @@ python  src/SentencePerturbation/sentence_perturbation.py \
         --task anto \
         --target_lang en \
         --output_dir ./data/perturbed_dataset/ \
-        --save True \
+        --save \
         --sample_size 3500
 ```
 
@@ -70,7 +79,7 @@ python src/evaluate.py --model meta-llama/Meta-Llama-3-8B
     --gpu auto \
     --batch_size 16 \
     --metric cosine \
-    --save True \
+    --save \
     --sample_size 3500
 ```
 The script supports different models (e.g., sbert, use, simcse, gpt3-ada, llama2, etc.) and datasets (e.g., **qqp, paws_wiki, mrpc, afin**). We evaluate models on five criteria (e.g. **paraphrase, synonym, antonym, negation, and jumbling**). We measure models on two metric **Cosine Similarity** and **Normalized Euclidean Distance (NED)**
