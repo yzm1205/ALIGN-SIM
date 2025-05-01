@@ -211,7 +211,7 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
                 file.write(f"""Summary for Positive Pairs (label=1) for {args_model}: {pos.describe() if len(pos) > 0 else "No positive pairs found"}\n""")
                 file.write(f"""Summary for Random Pairs (label=0) for {args_model}: {rand.describe() if len(rand) > 0 else "No random pairs found"}\n""")
             file.write(f"The summary of {std_task} criterion on {dataset_name} dataset for {args_model} model: \n")
-            if std_task in ["negation","synonym"]:
+            if std_task in ["negation","synonym","syn"]:
                 file.write("Note that: **The score are adjusted by alpha factor is cosine metric is used. For more reference follow the link: https://openreview.net/pdf?id=xwovhXuis2** ")
             file.write(str(data.describe()) + "\n")  # Added a newline for better formatting
         print(f"Summary appended to: {summary_text}")
