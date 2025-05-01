@@ -103,6 +103,15 @@ The script supports different models (e.g., sbert, use, simcse, gpt3-ada, llama2
 
 Evaluation results—such as similarity scores, normalized distances, and histograms—are saved in the `Results/`. Use the provided Jupyter notebooks in the `src/PlotAndTables.ipynb` folder to explore and visualize the performance of different models across the evaluation criteria. -->
 
+## Future Work
+
+We are actively working on enhancing this project. Planned future updates include:
+
+* **Custom Dataset Evaluation:** Implementing robust evaluation capabilities for user-provided custom datasets, allowing assessment of model performance on specific sentence pair tasks beyond the standard benchmarks.
+* **Multilingual Evaluation:** Extending model evaluation to cover a wider range of languages, including French (`fr`), Spanish (`es`), German (`de`), Chinese (`zh`), Japanese (`ja`), and Korean (`ko`), to assess cross-lingual performance.
+
+
+
 
 # Citation
 
