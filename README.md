@@ -61,7 +61,7 @@ A dataset is available for English and six other languages [Fr, es, de, zh, ja, 
 ``` bash
 python  src/SentencePerturbation/sentence_perturbation.py \
         --dataset_name mrpc \
-        --task anto \
+        --task cuda:0 \
         --target_lang en \
         --output_dir ./data/perturbed_dataset/ \
         --save \
@@ -76,8 +76,8 @@ Run the evaluation script to test a sentence encoder against the five semantic a
 python src/evaluate.py --model meta-llama/Meta-Llama-3-8B
     --dataset qqp \
     --task antonym \
-    --gpu auto \
-    --batch_size 16 \
+    --gpu cuda:0 \
+    --batch_size 8 \
     --metric cosine \
     --save \
     --sample_size 3500
