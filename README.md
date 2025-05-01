@@ -55,13 +55,14 @@ For more information [HuggingFace CLI](https://huggingface.co/docs/huggingface_h
 # Usage
 
 ## Creating Sentence Perturbation Dataset [Optional]
-A dataset is available for English and six other languages [Fr, es, de, zh, ja, ko]. If you want to work with a different dataset, run the code below otherwise skip this step:
+<!-- A dataset is available for English and six other languages [Fr, es, de, zh, ja, ko]. If you want to work with a different dataset, run the code below otherwise skip this step: -->
+Currently support four dataset **MRPC, PAWS-WIKI, QQP and Negation-without-paraphrase**. Run the command below to create perturbated dataset for tasks like **antonym replacement, synonym replacement and, sentence jumbling**.
 
 
 ``` bash
 python  src/SentencePerturbation/sentence_perturbation.py \
         --dataset_name mrpc \
-        --task cuda:0 \
+        --task antonym \
         --target_lang en \
         --output_dir ./data/perturbed_dataset/ \
         --save \
@@ -70,7 +71,7 @@ python  src/SentencePerturbation/sentence_perturbation.py \
 
 ## Evaluating Sentence Encoders
 
-Run the evaluation script to test a sentence encoder against the five semantic alignment criteria. You can use any HuggingFace model for evaluaton. For example, to evaluate SBERT on the QQP dataset:
+Run the evaluation script to test a sentence encoder against the five semantic alignment criteria. You can use any HuggingFace model for evaluaton. For example, to evaluate Llama3 on the QQP dataset:
 
 ```bash
 python src/evaluate.py --model meta-llama/Meta-Llama-3-8B
@@ -82,6 +83,20 @@ python src/evaluate.py --model meta-llama/Meta-Llama-3-8B
     --save \
     --sample_size 3500
 ```
+
+| Argument      | Type | Default | Choices                                                              |
+|---------------|------|---------|----------------------------------------------------------------------|
+| --dataset     | str  | -       | -                                                                    |
+| --task        | str  | all     | antonym, jumbling, synonym, paraphrase, negation, all |
+| --model       | str  | -       | -                                                                    |
+| --target_lang | str  | en      | -                                                                    |
+| --save        | flag | False   | -                                                                    |
+| --gpu         | str  | cuda:0  | -                                                                    |
+| --batch_size  | int  | 16      | -                                                                    |
+| --metric      | str  | cosine  | cosine, ned, both                                                    |
+| --sample_size | int  | 3500    | -                                                                    |
+
+
 The script supports different models (e.g., sbert, use, simcse, gpt3-ada, llama2, etc.) and datasets (e.g., **qqp, paws_wiki, mrpc, afin**). We evaluate models on five criteria (e.g. **paraphrase, synonym, antonym, negation, and jumbling**). We measure models on two metric **Cosine Similarity** and **Normalized Euclidean Distance (NED)**
 
 <!-- # Viewing Results
