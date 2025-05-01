@@ -133,10 +133,10 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         data["sim_org_n2"] = sim_n2
         data["sim_org_n3"] = sim_n3
         
-        data["diff_org_para"] = sim_para - sim_para  # Zero as per original
-        data["diff_org_n1"] = sim_para - sim_n1
-        data["diff_org_n2"] = sim_para - sim_n2
-        data["diff_org_n3"] = sim_para - sim_n3
+        #data["diff_org_para"] = sim_para - sim_para  # Zero as per original
+        data["diff_org_n1"] = np.array(sim_para) -  np.array(sim_n1)
+        data["diff_org_n2"] = np.array(sim_para) -  np.array(sim_n2)
+        data["diff_org_n3"] = np.array(sim_para) -  np.array(sim_n3)
         
         print(f"""The summary for Jumbling Criteria for {args_model} \n {data.describe()} """)
     
@@ -211,6 +211,8 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
                 file.write(f"""Summary for Positive Pairs (label=1) for {args_model}: {pos.describe() if len(pos) > 0 else "No positive pairs found"}\n""")
                 file.write(f"""Summary for Random Pairs (label=0) for {args_model}: {rand.describe() if len(rand) > 0 else "No random pairs found"}\n""")
             file.write(f"The summary of {std_task} criterion on {dataset_name} dataset for {args_model} model: \n")
+            if std_task in ["negation","synonym"]:
+                file.write("Note that: **The score are adjusted by alpha factor is cosine metric is used. For more reference follow the link: https://openreview.net/pdf?id=xwovhXuis2** ")
             file.write(str(data.describe()) + "\n")  # Added a newline for better formatting
         print(f"Summary appended to: {summary_text}")
         data.to_csv(path)
@@ -344,7 +346,7 @@ if __name__ == "__main__":
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",
-            "args_task": ["paraphrase"],  # Testing the negation task
+            "args_task": ["jumbling"],  # Testing the negation task
             "default_gpu": "cuda:2",
             "save": True,
             "target_lang": "en",
