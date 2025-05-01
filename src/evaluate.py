@@ -107,8 +107,8 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         emb_para = embeddings[1::3]  # start at 1, step by 3
         emb_anto = embeddings[2::3]  # start at 2, step by 3
        
-        mean_para, sim_para = utils.similarity_between_sent(emb_org, emb_para)
-        mean_anto, sim_anto = utils.similarity_between_sent(emb_org, emb_anto)
+        mean_para, sim_para = metric.compute(emb_org, emb_para)
+        mean_anto, sim_anto = metric.compute(emb_org, emb_anto)
         data["sim_org_para"] = sim_para
         data["sim_org_anto"] = sim_anto
         data["diff_org_para"] = np.array(sim_para) - np.array(sim_anto)
@@ -123,10 +123,10 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         emb_n3 = embeddings[4::5]    # start at 4, step by 5
         
         # Compute metrics for each perturbation
-        mean_para, sim_para = utils.similarity_between_sent(emb_org, emb_para)
-        mean_n1, sim_n1 = utils.similarity_between_sent(emb_org, emb_n1)
-        mean_n2, sim_n2 = utils.similarity_between_sent(emb_org, emb_n2)
-        mean_n3, sim_n3 = utils.similarity_between_sent(emb_org, emb_n3)
+        mean_para, sim_para = metric.compute(emb_org, emb_para)
+        mean_n1, sim_n1 = metric.compute(emb_org, emb_n1)
+        mean_n2, sim_n2 = metric.compute(emb_org, emb_n2)
+        mean_n3, sim_n3 = metric.compute(emb_org, emb_n3)
         
         data["sim_org_para"] = sim_para
         data["sim_org_n1"] = sim_n1
@@ -146,9 +146,9 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         emb_s2 = embeddings[2::4]   # start at 2, step by 4
         emb_s3 = embeddings[3::4]   # start at 3, step by 4
         
-        _, sim_s1 = utils.similarity_between_sent(emb_org, emb_s1)
-        _, sim_s2 = utils.similarity_between_sent(emb_org, emb_s2)
-        _, sim_s3 = utils.similarity_between_sent(emb_org, emb_s3)
+        _, sim_s1 = metric.compute(emb_org, emb_s1)
+        _, sim_s2 = metric.compute(emb_org, emb_s2)
+        _, sim_s3 = metric.compute(emb_org, emb_s3)
         
         data["sim_org_s1"] = np.array(sim_s1) * alpha
         data["sim_org_s2"] = np.array(sim_s2) * alpha
@@ -165,12 +165,12 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         # Calculate similarities for positive pairs
         pos_emb_s1 = pos_embeddings[0::2]  # start at 0, step by 2
         pos_emb_s2 = pos_embeddings[1::2]  # start at 1, step by 2
-        pos_mean, pos_sim = utils.similarity_between_sent(pos_emb_s1, pos_emb_s2)
+        pos_mean, pos_sim = metric.compute(pos_emb_s1, pos_emb_s2)
         
         # Calculate similarities for random pairs
         rand_emb_s1 = rand_embeddings[0::2]  # start at 0, step by 2
         rand_emb_s2 = rand_embeddings[1::2]  # start at 1, step by 2
-        rand_mean, rand_sim = utils.similarity_between_sent(rand_emb_s1, rand_emb_s2)
+        rand_mean, rand_sim = metric.compute(rand_emb_s1, rand_emb_s2)
         
         # Add the similarities to the respective dataframes
         pos["sim"] = pos_sim if len(pos_sim) > 0 else []
@@ -337,17 +337,17 @@ if __name__ == "__main__":
         }   
     else:
         # For debugging/testing - try multiple tasks
-        # TODO: Need to handle multiple dataset entry. if afin is provided then only negation task is executed. 
+        
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",
-            "args_task": ["jumb"],  # Testing the negation task
+            "args_task": ["paraphrase"],  # Testing the negation task
             "default_gpu": "cuda:2",
             "save": True,
             "target_lang": "en",
             "metric": "cosine",
             "batch_size": 2,
-            "sample_size":3500
+            "sample_size":100
         }
     run(**config)
     
@@ -357,8 +357,10 @@ if __name__ == "__main__":
     2) All criterion
         if user passes all
     3) Different metric : Done
-    4) Check sampling: check paraphraase and other criteria. may be we need to 2* sampling for paraphrase. 
     4) test on other device. check requirnments. 
+    5) stratified sampling for paraphrase dataset when sampled. 
     
+    resolve
+    1) device type auto is not acceptable..find why?
     """
  
