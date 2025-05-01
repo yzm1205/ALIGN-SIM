@@ -86,7 +86,7 @@ python src/evaluate.py --model meta-llama/Meta-Llama-3-8B
 
 | Argument      | Type | Default | Choices                                                              |
 |---------------|------|---------|----------------------------------------------------------------------|
-| --dataset     | str  | -       | -                                                                    |
+| --dataset     | str  |-  | qqp, mrpc, paws, negation-                                                                    |
 | --task        | str  | all     | antonym, jumbling, synonym, paraphrase, negation, all |
 | --model       | str  | -       | -                                                                    |
 | --target_lang | str  | en      | -                                                                    |
