@@ -43,6 +43,15 @@ cd ALIGN-SIM
 pip install -r requirements.txt
 ```
 
+Setup your HuggingFace Token to access models:
+```
+pip install huggingface_hub
+huggingface-cli login
+# Paste your token here
+```
+For more information
+
+
 # Usage
 
 ## Creating Sentence Perturbation Dataset [Optional]
