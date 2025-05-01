@@ -1,8 +1,9 @@
-/data/perturbed_dataset/
-/.python-version
-/src/__pycache__
+data/perturbed_dataset/
+.python-version
+src/__pycache__
 *.pyc
 src/*.ipynb
-./Results/*
-./Models/.env
-./data/original_datasets/En/afin.jsonl
+Models/.env
+data/original_datasets/En/afin.jsonl
+Results/
+Models/*.pyc
