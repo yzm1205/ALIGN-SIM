@@ -12,6 +12,7 @@ def get_args():
     parser.add_argument(
         "--dataset", 
         dest="dataset", 
+        choices=["qqp","mrpc","paws","negation"],
         required=True, 
         help="Name of the CSV file"
     )
