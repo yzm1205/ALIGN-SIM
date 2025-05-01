@@ -45,13 +45,13 @@ def load_data(path):
 def read_data(dataset_or_path ):
     
     if not isinstance(dataset_or_path , str):
-        raise TypeError(f"Path must be a string, received type: {type(path)}")
+        raise TypeError(f"Path must be a string, received type: {type(dataset_or_path)}")
     
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Dataset file not found at path: {path}")
+    # if not os.path.exists(dataset_or_path):
+    #     raise FileNotFoundError(f"Dataset file not found at path: {dataset_or_path}")
     
     # Determine separator based on file extension (case-insensitive)
-    file_ext = os.path.splitext(path)[1].lower()
+    file_ext = os.path.splitext(dataset_or_path)[1].lower()
     
     if dataset_or_path  == "mrpc":
         data = load_data("./data/original_datasets/En/mrpc.csv")

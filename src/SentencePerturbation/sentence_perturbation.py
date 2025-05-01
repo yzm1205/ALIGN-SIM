@@ -92,7 +92,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
             return
     
     elif task == "syn":
-        print("Working...")
+        print("Creating Synonym Perturbation dataset...")
         data = read_data(dataset_name) 
         if "Unnamed: 0" in data.columns:
             data.drop("Unnamed: 0", axis=1, inplace=True)
@@ -109,7 +109,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         assert perturbed_data.shape[1] == 4, "Perturbed data size mismatch"
     
     elif task == "paraphrase":
-        print("Working...")
+        print("Preparing Paraphrase dataset...")
         # shuffling the negative samples
         # we also want equal number of positive and negative samples
         data = read_data(dataset_name) 
@@ -126,7 +126,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         assert perturbed_data.shape[1] == 3, "Perturbed data size mismatch" # original_sentence, paraphrased, label
         
     elif task == "anto":
-        print("Working...")
+        print("Creating Antonym Perturbation dataset...")
         data = read_data(dataset_name) 
         if "Unnamed: 0" in data.columns:
             data.drop("Unnamed: 0", axis=1, inplace=True)
@@ -143,7 +143,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         
     # Apply jumbling
     elif task == "jumbling":
-        print("Working...")
+        print("Creating Jumbling dataset...")
         data = read_data(dataset_name) 
         if "Unnamed: 0" in data.columns:
             data.drop("Unnamed: 0", axis=1, inplace=True)
@@ -190,7 +190,7 @@ def sampling(data: pd.DataFrame, task :str, sample_size: int, random_state: int 
     positive_data = data[data["label"] == 1]
     negative_data = data[data["label"] == 0]
     
-    if task in ["anto", "jumb"]:
+    if task in ["anto", "jumbling"]:
         return positive_data
     
     # ----- Sampling positive pair, but also checking if we satisfy sample size -----
