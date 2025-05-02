@@ -59,7 +59,7 @@ class LLMEmbeddings:
             model_dir = model_name 
 
         # Load tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True,device_map=self.device)
         
         # Load model configuration to determine model type
         config = AutoConfig.from_pretrained(model_dir, trust_remote_code=True)
@@ -68,12 +68,12 @@ class LLMEmbeddings:
         # Automatically choose between AutoModelForCausalLM and AutoModel
         if "CausalLM" in self.model_type:
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_dir, trust_remote_code=True, torch_dtype=torch.float16
-            ).to(self.device)
+                model_dir, trust_remote_code=True, torch_dtype=torch.float16,
+                device_map=self.device)
         else:
             self.model = AutoModel.from_pretrained(
                 model_dir, trust_remote_code=True, torch_dtype=torch.float16
-            ).to(self.device)
+            ,device_map=self.device)
 
         # Ensure padding token is set (fixes issues in tokenization)
         if self.tokenizer.pad_token is None:
@@ -85,7 +85,7 @@ class LLMEmbeddings:
         """Encodes input sentences into embeddings."""
         inputs = self.tokenizer(
             text, return_tensors="pt", padding=True, truncation=True, max_length=1024, return_token_type_ids=False
-        ).to(self.device)
+        ,device_map=self.device)
 
         with torch.no_grad():
             outputs = self.model(**inputs, output_hidden_states=True, use_cache=False)
@@ -103,14 +103,26 @@ class LLMEmbeddings:
         # Process the text in batches
         for i in tqdm(range(0, len(text), batch_size), desc="Processing Batches"):
             batch_text = text[i:i+batch_size]
-            inputs = self.tokenizer(
+            
+            if self.device != "auto":
+                inputs =inputs = self.tokenizer(
                 batch_text,
                 return_tensors="pt",
                 padding=True,
                 truncation=True,
                 max_length=1024,
                 return_token_type_ids=False
-            ).to(self.device)
+                ).to(self.device)
+            else:
+                # when device set to auto
+                inputs = self.tokenizer(
+                batch_text,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=1024,
+                return_token_type_ids=False
+                )
 
             with torch.no_grad():
                 outputs = self.model(**inputs, output_hidden_states=True, use_cache=False)
@@ -125,7 +137,8 @@ class LLMEmbeddings:
     
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cuda:1"
 
     # Load any Hugging Face LLM (e.g., LLaMA, Mistral, Falcon, GPT)
     
