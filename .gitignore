@@ -7,3 +7,4 @@ Models/.env
 data/original_datasets/En/afin.jsonl
 Results/
 Models/*.pyc
+src/adjustment_factor.py
