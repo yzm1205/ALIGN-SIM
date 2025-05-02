@@ -74,7 +74,6 @@ def get_args():
         dest="sample_size",
         default=3500,
         type=int,
-        default=None,
         help="Number of rows to process.",
     )
     return parser.parse_args()
