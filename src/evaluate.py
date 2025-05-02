@@ -1,11 +1,12 @@
 import argparse
+from datetime import datetime
 import numpy as np
 import os 
 import pandas as pd
 from tqdm import tqdm
 import torch
 import utils
-from utils import mkdir_p, get_afin_data, read_pertubed_data
+from utils import mkdir_p, get_afin_data, read_pertubed_data, style, save_summary
 from metrics import *
 import sys
 sys.path.insert(0,"./")
@@ -15,6 +16,7 @@ from main_args import get_args
 from metrics import CosineMetric
 from src.SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
 
+timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def process_task(args_model, dataset_name, target_lang, task, model, sample_size, default_gpu="cuda", metric="cosine", save=False, batch_size=2,alpha=1.0):
     """
@@ -180,9 +182,9 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         data = pd.concat([pos, rand]).sort_index()
         
         # Print summaries for positive and random pairs
-        print(f"""Summary for Positive Pairs (label=1) for {args_model}: {pos.describe() if len(pos) > 0 else "No positive pairs found"}""")
+        print(f"""Summary for Positive Pairs (label=1) for {args_model}: {data[data["label"] == 1].describe() if len(data[data["label"] == 1]) > 0 else "No positive pairs found"}""")
         
-        print(f"""Summary for Random Pairs (label=0) for {args_model}: {rand.describe() if len(rand) > 0 else "No random pairs found"}""")
+        print(f"""Summary for Random Pairs (label=0) for {args_model}: {data[data["label"] == 0].describe() if len(data[data["label"] == 0]) > 0 else "No random pairs found"}""")
         
         print(f"""Overall Summary for Paraphrase Criteria for {args_model}: {data.describe()}""")
     
@@ -203,23 +205,35 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
     
     if save:
         path = f"./Results/{target_lang}/{std_task}/{dataset_name}_{args_model}_{std_task}_metric.csv"
-        summary_text = f"./Results/{target_lang}/{std_task}/{dataset_name}_{args_model}_{std_task}.txt"
+        # summary_text = f"./Results/{target_lang}/{std_task}/{dataset_name}_{args_model}_{std_task}.txt"
+        summary_text = f"./Results/{target_lang}/run_summary_{timestamp}.txt"
         mkdir_p(os.path.dirname(path))
         mkdir_p(os.path.dirname(summary_text))
-        with open(summary_text, "a", encoding='utf-8') as file: #added encoding
-            if std_task == "paraphrase":
-                file.write(f"""Summary for Positive Pairs (label=1) for {args_model}: {pos.describe() if len(pos) > 0 else "No positive pairs found"}\n""")
-                file.write(f"""Summary for Random Pairs (label=0) for {args_model}: {rand.describe() if len(rand) > 0 else "No random pairs found"}\n""")
-            file.write(f"The summary of {std_task} criterion on {dataset_name} dataset for {args_model} model: \n")
-            if std_task in ["negation","synonym","syn"]:
-                file.write("Note that: **The score are adjusted by alpha factor is cosine metric is used. For more reference follow the link: https://openreview.net/pdf?id=xwovhXuis2** ")
-            file.write(str(data.describe()) + "\n")  # Added a newline for better formatting
-        print(f"Summary appended to: {summary_text}")
+        
+        save_summary(summary_text, args_model, std_task, dataset_name, data )
+
+        # with open(summary_text, "a", encoding='utf-8') as file: #added encoding
+        #     if std_task == "paraphrase":
+        #         file.write(f"{style(std_task.upper() + ' criterion')}")
+        #         file.write(f"""Summary for Positive Pairs (label=1) for {args_model}: {pos.describe() if len(pos) > 0 else "No positive pairs found"}\n""")
+        #         file.write(f"""Summary for Random Pairs (label=0) for {args_model}: {rand.describe() if len(rand) > 0 else "No random pairs found"}\n""")
+                
+        #     file.write(f"{style(std_task.upper() + ' criterion')}")
+        #     file.write(f"The summary of {std_task} criterion on {dataset_name} dataset for {args_model} model: \n")
+        #     if std_task in ["negation","synonym","syn"]:
+        #         file.write(f"{style(std_task.upper() + ' criterion')}")
+        #         file.write("Note that: **The score are adjusted by alpha factor is cosine metric is used. For more reference follow the link: https://openreview.net/pdf?id=xwovhXuis2** ")
+        #     file.write(str(data.describe()) + "\n")  # Added a newline for better formatting
+        
+        # print(f"Summary appended to: {summary_text}")
         data.to_csv(path)
         print(f"Data saved at path: {path}")
+        
     
     return data
 
+
+    
 
 def run(args_model, dataset_name, target_lang, args_task, sample_size, default_gpu="cuda", metric="cosine", save=False, batch_size=2):
     """
@@ -346,8 +360,8 @@ if __name__ == "__main__":
         config = {
             "args_model": "llama3",
             "dataset_name": "mrpc",
-            "args_task": ["jumbling"],  # Testing the negation task
-            "default_gpu": "cuda:2",
+            "args_task": ["all"],  # Testing the negation task
+            "default_gpu": "cuda:1",
             "save": True,
             "target_lang": "en",
             "metric": "cosine",
@@ -355,17 +369,14 @@ if __name__ == "__main__":
             "sample_size":100
         }
     run(**config)
-    
     # Testing:
     """
     1) Individual criterion : Done
     2) All criterion
         if user passes all
     3) Different metric : Done
-    4) test on other device. check requirnments. 
-    5) stratified sampling for paraphrase dataset when sampled. 
+    4) test on other device. check requirnments.  Done
+    5) stratified sampling for paraphrase dataset when sampled. Done
     
-    resolve
-    1) device type auto is not acceptable..find why?
     """
  

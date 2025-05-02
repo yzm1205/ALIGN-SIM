@@ -7,7 +7,9 @@ from typing import Union
 import requests
 from urllib.parse import urlparse
 import json
-from SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
+import sys
+sys.path.insert(0,"./")
+from src.SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
 
 
 def delete_file(file_pt: Path) -> None:
@@ -244,3 +246,37 @@ def get_afin_data(output_path="./data/perturbed_dataset/en/negation/afin.csv", j
         print(f"Error processing AFIN data: {str(e)}")
         return pd.DataFrame(columns=["sentence1", "sentence2"])
 
+
+def style(task):
+    num_asterisks = 42
+    task_length = len(task)
+    padding = (num_asterisks - 4 - task_length) // 2
+
+    line_top_bot = "*" * num_asterisks
+    line_middle = "*" + " " * padding + f" {task} " + " " * (num_asterisks - 2 - task_length - padding) + "*"
+
+    return f"{line_top_bot}\n{line_middle}\n{line_top_bot}\n"
+    
+    
+def save_summary(summary_text, args_model, std_task, dataset_name, data):
+    with open(summary_text, "a", encoding='utf-8') as file:  # added encoding
+        #moved here to avoid calling multiple times
+        if std_task == "paraphrase":
+            file.write(f"{style(std_task.upper() + ' CRITERION')}")
+            file.write(
+            f"The summary of {std_task} criterion on {dataset_name} dataset for {args_model} model: \n"
+        )
+            file.write(f"""Summary for Positive Pairs (label=1) for {args_model}:\n {data[data["label"] == 1].describe() if len(data[data["label"] == 1]) > 0 else "No positive pairs found"}\n\n""")
+        
+            file.write(f"""Summary for Random Pairs (label=0) for {args_model}:\n {data[data["label"] == 0].describe() if len(data[data["label"] == 0]) > 0 else "No random pairs found"}\n\n""")
+            
+        else:
+            file.write(f"{style(std_task.upper() + ' CRITERION')}")
+            file.write(
+                f"The summary of {std_task} criterion on {dataset_name} dataset for {args_model} model: \n"
+            )
+        if std_task in ["negation", "synonym", "syn"]:
+            file.write(
+                "Note that: **The score are adjusted by alpha factor is cosine metric is used. For more reference follow the link: https://openreview.net/pdf?id=xwovhXuis2** \n\n"
+            )
+        file.write("Final Summary: \n" + str(data.describe()) + "\n\n")  # Added a newline for better formatting
