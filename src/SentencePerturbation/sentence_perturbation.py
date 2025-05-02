@@ -6,9 +6,9 @@ import os
 import pandas as pd
 import re
 import sys
-sys.path.insert(0, "./src/")
+sys.path.insert(0, "./")
 # from utils import read_data
-from SentencePerturbation.word_replacer import WordReplacer, WordSwapping
+from src.SentencePerturbation.word_replacer import WordReplacer, WordSwapping
 import random
 
 # Try relative import first (for module execution)
