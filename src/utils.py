@@ -106,16 +106,19 @@ def read_pertubed_data(filename, task, dataset_name, sample_size, lang="en"):
     # For other tasks, we check if the file exists, and if not, create the perturbed dataset
     if not os.path.exists(filename):
         perturb_sentences(dataset_name, task, target_lang=lang, save=True, sample_size=sample_size)
-    
-    # Load and return the dataset
+    if "mrpc" in filename.split("/")[-1].split("_"):
+        return pd.read_csv(filename)
     # Load and return the dataset
     if task=="paraphrase":
         # stratified sampling
         sample_per_label = sample_size//2
         df = pd.read_csv(filename)
-        df_sampled = df.groupby("label", group_keys=False).apply(lambda x: x.sample(n=sample_per_label, random_state=42))
-        df_sampled = df_sampled.reset_index(drop=True)
-        return df_sampled
+        try:
+            df_sampled = df.groupby("label", group_keys=False).apply(lambda x: x.sample(n=sample_per_label, random_state=42))
+            df_sampled = df_sampled.reset_index(drop=True)
+            return df_sampled
+        except ValueError as ve:
+            return pd.read_csv(filename).sample(n=sample_size,random_state=42)
     else:
         return pd.read_csv(filename).sample(n=sample_size,random_state=42)
 
