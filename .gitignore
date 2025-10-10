@@ -3,6 +3,8 @@ data/perturbed_dataset/
 src/__pycache__
 *.pyc
 src/*.ipynb
+.env
+*.env
 Models/.env
 data/original_datasets/En/afin.jsonl
 Results/
