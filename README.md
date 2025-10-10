@@ -99,6 +99,29 @@ python src/evaluate.py --model meta-llama/Meta-Llama-3-8B
 
 The script supports different models (e.g., sbert, use, simcse, gpt3-ada, llama2, etc.) and datasets (e.g., **qqp, paws_wiki, mrpc, afin**). We evaluate models on five criteria (e.g. **paraphrase, synonym, antonym, negation, and jumbling**). We measure models on two metric **Cosine Similarity** and **Normalized Euclidean Distance (NED)**
 
+### Custom Embedding Providers
+
+ALIGN-SIM lets you plug in closed-source APIs or your own embedding stack without touching the core code:
+
+1. **Implement the contract** – subclass `BaseEmbedder` and place your implementation anywhere on the import path. A ready-to-use example that wraps Sentence-BERT is available in `src/custom_models.py`.
+2. **Choose how to wire it in** – either pass the CLI flags or set environment variables:
+   - `--custom-class-path src.custom_models.CustomModel`
+   - `--custom-kwargs '{"model_name": "sentence-transformers/all-MiniLM-L6-v2", "batch_size": 32}'`
+   - or set `CUSTOM_CLASS_PATH` / `CUSTOM_CLASS_KWARGS` in your environment for repeated runs.
+3. **Run the evaluator** – when `--custom-class-path` is provided, `--model` becomes optional. The factory will instantiate your class and feed its `encode` outputs through the existing pipeline (the result must be a `numpy.ndarray` shaped `(N, D)`).
+
+Example: Sentence-BERT on MRPC paraphrase
+
+```bash
+python src/evaluate.py \
+  --dataset mrpc \
+  --task paraphrase \
+  --custom-class-path src.custom_models.CustomModel \
+  --custom-kwargs '{"model_name": "sentence-transformers/all-MiniLM-L6-v2", "batch_size": 32}' \
+  --batch_size 16 \
+  --sample_size 3500
+```
+
 <!-- # Viewing Results
 
 Evaluation results—such as similarity scores, normalized distances, and histograms—are saved in the `Results/`. Use the provided Jupyter notebooks in the `src/PlotAndTables.ipynb` folder to explore and visualize the performance of different models across the evaluation criteria. -->
