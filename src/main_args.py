@@ -28,7 +28,7 @@ def get_args():
     parser.add_argument(
         "--model", 
         dest="model_name", 
-        required=True, 
+        required=False, 
         help="LLM Model")
     
     parser.add_argument(
@@ -76,4 +76,23 @@ def get_args():
         type=int,
         help="Number of rows to process.",
     )
-    return parser.parse_args()
+
+    parser.add_argument(
+        "--custom-class-path",
+        dest="custom_class_path",
+        default=None,
+        help="Import path for a custom embedder implementing BaseEmbedder.",
+    )
+
+    parser.add_argument(
+        "--custom-kwargs",
+        dest="custom_kwargs",
+        default=None,
+        help="JSON string of keyword arguments passed to the custom embedder.",
+    )
+
+    args = parser.parse_args()
+    if args.model_name is None and args.custom_class_path is None:
+        parser.error("Either --model or --custom-class-path must be provided.")
+
+    return args

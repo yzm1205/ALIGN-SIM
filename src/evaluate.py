@@ -1,5 +1,7 @@
 import argparse
 from datetime import datetime
+from typing import Optional
+
 import numpy as np
 import os 
 import pandas as pd
@@ -10,13 +12,21 @@ from utils import mkdir_p, get_afin_data, read_pertubed_data, style, save_summar
 from metrics import *
 import sys
 sys.path.insert(0,"./")
-from Models.SentenceTransformersModel import SentenceTransformerModels
-from Models.llm_embeddings import LLMEmbeddings
+from Models.llm_embeddings import build_embedder
 from main_args import get_args
 from metrics import CosineMetric
 from src.SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
 
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _derive_model_label(model_name: Optional[str], custom_class_path: Optional[str]) -> str:
+    if model_name:
+        return model_name
+    if custom_class_path:
+        return custom_class_path.split(".")[-1]
+    return "custom_embedder"
+
 
 def process_task(args_model, dataset_name, target_lang, task, model, sample_size, default_gpu="cuda", metric="cosine", save=False, batch_size=2,alpha=1.0):
     """
@@ -90,19 +100,12 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     
-    
     # Batch process embeddings
-    embeddings = model.encode_batch(sentences, batch_size=batch_size)
+    embeddings = model.encode(sentences, batch_size=batch_size)
     # Ensure embeddings are on CPU and in numpy format
-    if args_model == "chatgpt":
-        # For chatgpt, embeddings is likely a list of torch tensors
-        embeddings = [emb.cpu().numpy() if isinstance(emb, torch.Tensor) else emb for emb in embeddings]
-        embeddings = np.array(embeddings)
-    else:
-        # For other models, assume a single torch tensor
-        if isinstance(embeddings, torch.Tensor):
-            embeddings = embeddings.cpu().numpy()
-    
+    if isinstance(embeddings, torch.Tensor):
+        embeddings = embeddings.cpu().numpy()
+
     # Process embeddings based on task
     if std_task == "anto":
         emb_org  = embeddings[0::3]  # start at 0, step by 3
@@ -235,7 +238,19 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
 
     
 
-def run(args_model, dataset_name, target_lang, args_task, sample_size, default_gpu="cuda", metric="cosine", save=False, batch_size=2):
+def run(
+    args_model,
+    dataset_name,
+    target_lang,
+    args_task,
+    sample_size,
+    default_gpu="cuda",
+    metric="cosine",
+    save=False,
+    batch_size=2,
+    custom_class_path=None,
+    custom_kwargs=None,
+):
     """
     Run evaluation on specified tasks
     
@@ -253,10 +268,19 @@ def run(args_model, dataset_name, target_lang, args_task, sample_size, default_g
         If a single task is specified, returns the dataframe for that task
         If multiple tasks are specified, returns a dictionary mapping tasks to their result dataframes
     """
-    print(f"\n*** Starting evaluation with {args_model} model on {dataset_name} dataset ***\n")
+    model_label = _derive_model_label(args_model, custom_class_path)
+
+    print(
+        f"\n*** Starting evaluation with {model_label} model on {dataset_name} dataset ***\n"
+    )
     
-    # Initialize model
-    model = LLMEmbeddings(args_model, device=default_gpu)
+    # Initialize model via factory (custom embedder if configured)
+    model = build_embedder(
+        model_name=args_model,
+        device=default_gpu,
+        custom_class_path=custom_class_path,
+        custom_kwargs=custom_kwargs,
+    )
 
     
     # Handle task(s) specification
@@ -306,7 +330,7 @@ def run(args_model, dataset_name, target_lang, args_task, sample_size, default_g
         try:
             # print(f"\n=== Starting task: {task} ===\n")
             result_df = process_task(
-                args_model=args_model,
+                args_model=model_label,
                 dataset_name=dataset_name,
                 target_lang=target_lang,
                 task=task,
@@ -352,31 +376,34 @@ if __name__ == "__main__":
             "target_lang": parser.target_lang,
             "metric": parser.metric,
             "batch_size": parser.batch_size,
-            "sample_size": parser.sample_size
+            "sample_size": parser.sample_size,
+            "custom_class_path": parser.custom_class_path,
+            "custom_kwargs": parser.custom_kwargs,
         }   
     else:
         # For debugging/testing - try multiple tasks
         
         config = {
-            "args_model": "llama3",
+            "args_model": "Qwen/Qwen2.5-1.5B-Instruct",
             "dataset_name": "mrpc",
-            "args_task": ["all"],  # Testing the negation task
+            "args_task": ["anto"],  # Testing the negation task
             "default_gpu": "cuda:1",
             "save": True,
             "target_lang": "en",
             "metric": "cosine",
             "batch_size": 2,
-            "sample_size":100
+            "sample_size":3500,
+            "custom_class_path": None,
+            "custom_kwargs": None,
         }
     run(**config)
     # Testing:
     """
-    1) Individual criterion : Done
-    2) All criterion
-        if user passes all
-    3) Different metric : Done
-    4) test on other device. check requirnments.  Done
-    5) stratified sampling for paraphrase dataset when sampled. Done
-    
+    Fixes:
+    1) Afin dataset: saving issue
+    2) Custom models
+    3) Plotting files
+    3) Gemma models
+
     """
- 
+

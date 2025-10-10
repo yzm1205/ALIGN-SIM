@@ -311,10 +311,10 @@ if __name__ == "__main__":
     if sys.gettrace() is not None:
         config = {
             "dataset_name": "mrpc",
-            "tasks": ["jumbling"],
+            "tasks": ["anto"],
             "target_lang": "en",
             "output_dir": "./data/perturbed_dataset/",
-            "save": True
+            "save":False
         }
     else: 
         args = get_args()
