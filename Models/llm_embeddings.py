@@ -75,7 +75,7 @@ class LLMEmbedder(BaseEmbedder):
 
         default_model_kwargs = dict(
             trust_remote_code=True,
-            dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+            dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
             device_map=self._device_map_for_hf(),
         )
         default_model_kwargs.update(self.model_kwargs)
