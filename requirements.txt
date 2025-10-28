@@ -1,17 +1,24 @@
-absl_py==2.1.0
-accelerate==0.30.1
 datasets==3.0.1
-googletrans==4.0.0rc1
-huggingface_hub==0.25.1
+transformers==4.56.2
+huggingface_hub>=0.34.0,<1.0
+accelerate>=0.30,<0.36
+safetensors>=0.4.5
+sentencepiece>=0.2
+
+# Sentence-Transformers (needs transformers<5)
+sentence-transformers==3.0.0
+
+# PyTorch (CPU or CUDA per your platform)
+torch==2.6
+
+# Scientific stack (torch 2.4 pairs well with numpy 1.26.x)
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.4.2
 matplotlib==3.8.4
 nltk==3.8.1
-numpy==2.2.5
-pandas==2.2.3
-python-dotenv==1.1.0
-Requests==2.32.3
-sentence_transformers==3.0.0
-scikit-learn==1.4.2
-torch==2.4.0
 tqdm==4.66.5
-transformers==4.45.2
+python-dotenv==1.1.0
+requests==2.32.3
+
 
