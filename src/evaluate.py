@@ -382,13 +382,12 @@ if __name__ == "__main__":
         }   
     else:
         # For debugging/testing - try multiple tasks
-        
         config = {
-            "args_model": "Qwen/Qwen2.5-1.5B-Instruct",
+            "args_model":"google/gemma-3-4b-it",
             "dataset_name": "mrpc",
             "args_task": ["anto"],  # Testing the negation task
             "default_gpu": "cuda:1",
-            "save": True,
+            "save": False,
             "target_lang": "en",
             "metric": "cosine",
             "batch_size": 2,
@@ -401,9 +400,6 @@ if __name__ == "__main__":
     """
     Fixes:
     1) Afin dataset: saving issue
-    2) Custom models
     3) Plotting files
-    3) Gemma models
-
     """
 
