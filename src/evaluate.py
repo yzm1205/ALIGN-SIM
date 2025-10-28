@@ -57,6 +57,7 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
     
     # Read data for this task
     if task == "negation":
+        dataset_name = "afin"
         pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{std_task}/{dataset_name}.csv"
     else:
         pertubed_data_path = f"./data/perturbed_dataset/{target_lang}/{std_task}/{dataset_name}_{std_task}_perturbed_{target_lang}.csv"
@@ -385,13 +386,13 @@ if __name__ == "__main__":
         config = {
             "args_model":"google/gemma-3-4b-it",
             "dataset_name": "mrpc",
-            "args_task": ["anto"],  # Testing the negation task
+            "args_task": ["negation"],  # Testing the negation task
             "default_gpu": "cuda:1",
-            "save": False,
+            "save": True,
             "target_lang": "en",
             "metric": "cosine",
             "batch_size": 2,
-            "sample_size":3500,
+            "sample_size": 500,
             "custom_class_path": None,
             "custom_kwargs": None,
         }
