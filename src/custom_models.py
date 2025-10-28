@@ -6,8 +6,29 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from Models.llm_embeddings import BaseEmbedder, TextInput
+# from openai import OpenAI
 
 
+# # Example 1
+
+# class GPTEmbedder:
+#     def __init__(self, model_name="text-embedding-3-small", api_key=None):
+#         self.model_name = model_name
+#         self.client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
+    
+#     def encode(self, texts):
+#         if isinstance(texts, str):
+#             texts = [texts]
+
+#         response = self.client.embeddings.create(
+#             model=self.model_name,
+#             input=texts
+#         )
+
+#         embeddings = [data.embedding for data in response.data]
+#         return np.array(embeddings, dtype=np.float32)
+    
+# Example 2
 class CustomModel(BaseEmbedder):
     """Sentence-BERT powered custom embedder.
 
@@ -21,12 +42,12 @@ class CustomModel(BaseEmbedder):
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         *,
         device: Optional[str] = None,
-    normalize_embeddings: bool = False,
-    show_progress_bar: bool = False,
-    batch_size: Optional[int] = None,
-    encode_kwargs: Optional[Dict[str, Any]] = None,
-    **model_kwargs: Any,
-    ) -> None:
+        normalize_embeddings: bool = False,
+        show_progress_bar: bool = False,
+        batch_size: Optional[int] = None,
+        encode_kwargs: Optional[Dict[str, Any]] = None,
+        **model_kwargs: Any,
+        ) -> None:
         """Initialise the Sentence-BERT model.
 
         Args:
