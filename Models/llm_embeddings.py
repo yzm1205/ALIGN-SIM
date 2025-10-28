@@ -10,7 +10,13 @@ import dotenv
 import numpy as np
 import torch
 from torch import Tensor
-from transformers import AutoConfig, AutoModel, AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    AutoConfig,
+    AutoProcessor,
+    AutoTokenizer,
+    AutoModel,
+    AutoModelForCausalLM,
+)
 from tqdm import tqdm
 
 sys.path.insert(0, "./")
@@ -41,46 +47,73 @@ class LLMEmbedder(BaseEmbedder):
         *,
         tokenizer_kwargs: Optional[Dict[str, Any]] = None,
         model_kwargs: Optional[Dict[str, Any]] = None,
+        max_length: int = 1024,
     ) -> None:
         self.model_name = model_name
         self.device = self._resolve_device(device)
         self.tokenizer_kwargs = tokenizer_kwargs or {}
         self.model_kwargs = model_kwargs or {}
+        self.max_length = max_length
 
         model_dir = self._resolve_model_path(model_name)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model_dir,
-            trust_remote_code=True,
-            **self.tokenizer_kwargs,
-        )
-
         config = AutoConfig.from_pretrained(model_dir, trust_remote_code=True)
-        self.model_type = config.architectures[0] if config.architectures else ""
+        # self.model_type = config.architectures[0] if config.architectures else ""
+        
+        self.model_type = (config.architectures[0] if getattr(config, "architectures", None) else "") or ""
+        self.is_multimodal = hasattr(config, "vision_config") or getattr(config, "is_multimodal", False)
+        self.image_token_id = getattr(config, "image_token_index", None)
+        
+        # Prefer Processor for multimodal (even for text-only); else Tokenizer
+        self.processor = None
+        self.tokenizer = None
+        if self.is_multimodal:
+            self.processor = AutoProcessor.from_pretrained(model_dir, trust_remote_code=True, **self.tokenizer_kwargs)
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True, **self.tokenizer_kwargs)
+
 
         default_model_kwargs = dict(
             trust_remote_code=True,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+            dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             device_map=self._device_map_for_hf(),
         )
         default_model_kwargs.update(self.model_kwargs)
+        
 
-        if "CausalLM" in self.model_type:
+        # if self.is_multimodal or "ConditionalGeneration" in self.model_type:
+        #     self.model = AutoModelForConditionalGeneration.from_pretrained(
+        #         model_dir, 
+        #         **default_model_kwargs
+        #         )
+        # if "CausalLM" in self.model_type:
+        #     self.model = AutoModelForCausalLM.from_pretrained(
+        #         model_dir,
+        #         **default_model_kwargs,
+        #     )
+        # else:
+        #     self.model = AutoModel.from_pretrained(
+        #         model_dir,
+        #         **default_model_kwargs,
+        #     )
+        # Try CausalLM first; fall back to generic AutoModel
+        try:
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_dir,
-                **default_model_kwargs,
+                model_dir, **default_model_kwargs
             )
-        else:
+        except Exception:
             self.model = AutoModel.from_pretrained(
-                model_dir,
-                **default_model_kwargs,
+                model_dir, **default_model_kwargs
             )
-
-        if self.tokenizer.pad_token is None:
+        # if self.tokenizer.pad_token is None:
+        #     self.tokenizer.pad_token = self.tokenizer.eos_token
+        if self.tokenizer is not None and self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.model.eval()
-
+        if default_model_kwargs.get("device_map") in (None, "sequential") and self.device:
+            self.model.to(self.device)
+    
     def encode(
         self,
         texts: TextInput,
@@ -89,14 +122,17 @@ class LLMEmbedder(BaseEmbedder):
         show_progress: bool = True,
         **_: Any,
     ) -> np.ndarray:
-        single_input = isinstance(texts, str)
-        batched_texts: List[str]
-        if single_input:
-            batched_texts = [texts]
-        else:
-            batched_texts = list(texts)
-            if not batched_texts:
-                raise ValueError("texts must contain at least one element")
+        # single_input = isinstance(texts, str)
+        # batched_texts: List[str]
+        # if single_input:
+        #     batched_texts = [texts]
+        # else:
+        #     batched_texts = list(texts)
+        #     if not batched_texts:
+        #         raise ValueError("texts must contain at least one element")
+        batched_texts: List[str] = [texts] if isinstance(texts, str) else list(texts)
+        if not batched_texts:
+            raise ValueError("texts must contain at least one element")
 
         embeddings: List[Tensor] = []
         iterator: Iterable[int] = range(0, len(batched_texts), batch_size)
@@ -105,21 +141,19 @@ class LLMEmbedder(BaseEmbedder):
 
         for start in iterator:
             chunk = batched_texts[start : start + batch_size]
-            inputs = self.tokenizer(
-                chunk,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=1024,
-                return_token_type_ids=False,
-            )
+            inputs = self._prepare_text_inputs(chunk)
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
             with torch.no_grad():
                 outputs = self.model(**inputs, output_hidden_states=True, use_cache=False)
 
             hidden = outputs.hidden_states[-1]
-            pooled = self._mean_pool(hidden, inputs["attention_mask"])
+            attn_mask = inputs.get("attention_mask")
+            if attn_mask is None:
+                attn_mask = torch.ones(hidden.size()[:2], dtype=torch.long, device=hidden.device)
+
+            mask = attn_mask.bool()
+            pooled = self._mean_pool(hidden, mask)
             embeddings.append(pooled.detach().cpu())
 
         stacked = torch.cat(embeddings, dim=0)
@@ -155,6 +189,22 @@ class LLMEmbedder(BaseEmbedder):
                 return {"": index}
             return "cpu"
         return str(self.device)
+    
+    def _prepare_text_inputs(self, texts: List[str]) -> Dict[str, Tensor]:
+        if self.processor is not None:
+            # Multimodal checkpoint, text-only path
+            return self.processor(
+                text=texts, return_tensors="pt", padding=True, truncation=True, max_length=self.max_length
+            )
+        else:
+            return self.tokenizer(
+                texts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=self.max_length,
+                return_token_type_ids=False,
+            )
 
 
 class _ValidatedEmbedder(BaseEmbedder):
