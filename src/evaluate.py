@@ -97,7 +97,7 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         sentences = pos_sentences + rand_sentences  
     elif std_task == "negation":
         # Extract the original and negated sentences
-        cols = ["sentence1", "sentence2"]
+        cols = ["sentence1", "sentence2","rnd"]
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     
@@ -197,16 +197,19 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
     
     elif std_task == "negation":
         # Process embeddings for negation task
-        emb_orig = embeddings[0::2]  # start at 0, step by 2
-        emb_neg = embeddings[1::2]   # start at 1, step by 2
+        emb_org = embeddings[0::3]  # start at 0, step by 3
+        emb_neg = embeddings[1::3]   # start at 1, step by 3
+        emb_rnd = embeddings[2::3]   # start at 2, step by 3
         
         # Calculate similarities between original and negated sentences
         # mean_sim, sim_scores = utils.similarity_between_sent(emb_orig, emb_neg)
-        mean_sim, sim_scores = metric.compute(emb_orig, emb_neg)
+        mean_sim, sim_scores = metric.compute(emb_org, emb_neg)
+        _, sim_rnd_scores = metric.compute(emb_org,emb_rnd)
         
         
         # Add similarity scores to dataframe
-        data["similarity"] = np.array(sim_scores) 
+        data["sim_org_neg"] = np.array(sim_scores) 
+        data["sim_org_rnd"] = np.array(sim_rnd_scores)
         
         print(f"""Detailed Statistics: {data.describe()}""")
     
@@ -389,7 +392,7 @@ if __name__ == "__main__":
         config = {
             "args_model":"llama3", #google/gemma-3-4b-it"
             "dataset_name": "mrpc",
-            "args_task": ["syn"],  # Testing the negation task
+            "args_task": ["negation"],  # Testing the negation task
             "default_gpu": "cuda:1",
             "save": True,
             "target_lang": "en",

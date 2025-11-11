@@ -76,8 +76,9 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     if task == "negation":
         print("Processing negation data...")
         # Use the consolidated function to get AFIN data
+        dataset_name = "afin"
         try:
-            from utils import get_afin_data
+            from src.utils import get_afin_data
             
             # If sample_size is specified, limit the data
             afin_data = get_afin_data(
@@ -315,8 +316,8 @@ if __name__ == "__main__":
     # # For Testing
     if sys.gettrace() is not None:
         config = {
-            "dataset_name": "mrpc",
-            "tasks": ["syn"],
+            "dataset_name": "negation",
+            "tasks": ["negation"],
             "target_lang": "en",
             "output_dir": "./data/perturbed_dataset/",
             "save":True
