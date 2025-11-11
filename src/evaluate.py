@@ -75,7 +75,7 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     elif std_task == "syn":
-        cols = ["original_sentence", "perturb_n1", "perturb_n2", "perturb_n3"]
+        cols = ["original_sentence", "perturb_n1", "perturb_n2", "perturb_n3","rnd"]
         for _, row in data[cols].iterrows():
             sentences.extend(row.values)
     elif std_task == "paraphrase":
@@ -147,18 +147,21 @@ def process_task(args_model, dataset_name, target_lang, task, model, sample_size
         print(f"""The summary for Jumbling Criteria for {args_model} \n {data.describe()} """)
     
     elif std_task == "syn":
-        emb_org = embeddings[0::4]  # start at 0, step by 4
-        emb_s1 = embeddings[1::4]   # start at 1, step by 4
-        emb_s2 = embeddings[2::4]   # start at 2, step by 4
-        emb_s3 = embeddings[3::4]   # start at 3, step by 4
+        emb_org = embeddings[0::5]  # start at 0, step by 5
+        emb_s1 = embeddings[1::5]   # start at 1, step by 5
+        emb_s2 = embeddings[2::5]   # start at 2, step by 5
+        emb_s3 = embeddings[3::5]   # start at 3, step by 5
+        emb_rnd = embeddings[4::5]  # start at 4, step by 5
         
         _, sim_s1 = metric.compute(emb_org, emb_s1)
         _, sim_s2 = metric.compute(emb_org, emb_s2)
         _, sim_s3 = metric.compute(emb_org, emb_s3)
+        _, sim_rnd = metric.compute(emb_org, emb_rnd)
         
         data["sim_org_s1"] = np.array(sim_s1) * alpha
         data["sim_org_s2"] = np.array(sim_s2) * alpha
         data["sim_org_s3"] = np.array(sim_s3) * alpha
+        data["sim_org_rnd"] = np.array(sim_rnd) * alpha
         
         print(f"""The summary for Synonym Criteria for {args_model} \n {data.describe()} """)
     
@@ -384,9 +387,9 @@ if __name__ == "__main__":
     else:
         # For debugging/testing - try multiple tasks
         config = {
-            "args_model":"google/gemma-3-4b-it",
+            "args_model":"llama3", #google/gemma-3-4b-it"
             "dataset_name": "mrpc",
-            "args_task": ["negation"],  # Testing the negation task
+            "args_task": ["syn"],  # Testing the negation task
             "default_gpu": "cuda:1",
             "save": True,
             "target_lang": "en",

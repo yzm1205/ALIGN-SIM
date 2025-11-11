@@ -30,7 +30,7 @@ TASK_ALIASES = {
     "all": "all", "All": "all", "ALL": "all"
 }
 
-def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", output_dir: str = "./data/perturbed_dataset/", sample_size: int = 3500, save :str = False) -> None:
+def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", output_dir: str = "./data/perturbed_dataset/", sample_size: int = 3500, save :str = False,seed=42) -> None:
     """
     perturb_sentences _summary_
 
@@ -43,7 +43,7 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         save (str, optional): _description_. Defaults to False.
     """
     # Import utils functions inside the function to avoid circular imports
-    from utils import mkdir_p, full_path, read_data
+    from src.utils import mkdir_p, full_path, read_data
     
     # Standardize task name
     task = TASK_ALIASES.get(task, task)
@@ -67,7 +67,8 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     # Initialize WordReplacer
     replacer = WordReplacer()
     # set seed
-    random.seed(42)
+    random.seed(seed)
+    np.random.seed(seed)
     
     # Create a new dataframe to store perturbed sentences
     perturbed_data = pd.DataFrame(columns=["original_sentence"])
@@ -86,6 +87,8 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
             )
             
             perturbed_data = afin_data
+            # Adding Random Sentences
+            perturbed_data["rnd"] = np.random.permutation(perturbed_data["sentence1"])
             
         except Exception as e:
             print(f"Error processing AFIN dataset: {str(e)}")
@@ -105,8 +108,10 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         perturbed_data["perturb_n1"] = perturbed_data["original_sentence"].apply(lambda x: replacer.sentence_replacement(x, 1, "synonyms"))
         perturbed_data["perturb_n2"] = perturbed_data["original_sentence"].apply(lambda x: replacer.sentence_replacement(x, 2, "synonyms"))
         perturbed_data["perturb_n3"] = perturbed_data["original_sentence"].apply(lambda x: replacer.sentence_replacement(x, 3, "synonyms"))
+        # Adding random Sentences
+        perturbed_data["rnd"] = np.random.permutation(perturbed_data["original_sentence"].values)
         
-        assert perturbed_data.shape[1] == 4, "Perturbed data size mismatch"
+        assert perturbed_data.shape[1] == 5, "Perturbed data size mismatch"
     
     elif task == "paraphrase":
         print("Preparing Paraphrase dataset...")
@@ -311,10 +316,10 @@ if __name__ == "__main__":
     if sys.gettrace() is not None:
         config = {
             "dataset_name": "mrpc",
-            "tasks": ["anto"],
+            "tasks": ["syn"],
             "target_lang": "en",
             "output_dir": "./data/perturbed_dataset/",
-            "save":False
+            "save":True
         }
     else: 
         args = get_args()
