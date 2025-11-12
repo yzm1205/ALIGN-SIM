@@ -30,7 +30,7 @@ TASK_ALIASES = {
     "all": "all", "All": "all", "ALL": "all"
 }
 
-def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", output_dir: str = "./data/perturbed_dataset/", sample_size: int = 3500, save :str = False,seed=42) -> None:
+def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", output_dir: str = "./data/perturbed_dataset/", sample_size: int = 3500, save :str = True,seed=42) -> None:
     """
     perturb_sentences _summary_
 
@@ -52,17 +52,15 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
     #     dataset_name = os.path.splitext(dataset_name)[0]
     
     print("--------------------------------------")
-    # print(f"Processing task: {task}")
+    print(f"Processing task: {task}")
     if task == "negation": 
         output_csv = full_path(os.path.join(output_dir, target_lang, task, f"{dataset_name}.csv"))
     else:
         output_csv = full_path(os.path.join(output_dir, target_lang, task, f"{dataset_name}_{task}_perturbed_{target_lang}.csv"))
+    
     if os.path.exists(output_csv):
         print(f"File already exists at: {output_csv}")
         return 
-    
-    # TODO: make it compatible with other language datasets
-    # print("Loading dataset...")
     
     # Initialize WordReplacer
     replacer = WordReplacer()
@@ -77,19 +75,18 @@ def perturb_sentences(dataset_name: str, task: str, target_lang:str ="en", outpu
         print("Processing negation data...")
         # Use the consolidated function to get AFIN data
         dataset_name = "afin"
-        try:
+        try: # download dataset if it does not exist. 
             from src.utils import get_afin_data
             
             # If sample_size is specified, limit the data
             afin_data = get_afin_data(
                 output_path=output_csv,
                 sample_size=sample_size,
-                save=save
+                save=save,
+                seed=seed
             )
             
             perturbed_data = afin_data
-            # Adding Random Sentences
-            perturbed_data["rnd"] = np.random.permutation(perturbed_data["sentence1"])
             
         except Exception as e:
             print(f"Error processing AFIN dataset: {str(e)}")

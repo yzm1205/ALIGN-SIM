@@ -10,7 +10,7 @@ import json
 import sys
 sys.path.insert(0,"./")
 from src.SentencePerturbation.sentence_perturbation import perturb_sentences, ALL_TASKS, TASK_ALIASES
-
+import random
 
 def delete_file(file_pt: Path) -> None:
     try:
@@ -172,7 +172,7 @@ def download_afin_dataset(filename=None, output_path="."):
     
     return None
 
-def get_afin_data(output_path="./data/perturbed_dataset/en/negation/afin.csv", jsonl_path="./data/original_datasets/En/afin.jsonl", sample_size=None, save=True):
+def get_afin_data(output_path="./data/perturbed_dataset/en/negation/afin.csv", jsonl_path="./data/original_datasets/En/afin.jsonl", sample_size=None, save=True, seed=42):
     """
     Consolidated function that handles the entire AFIN data workflow:
     1. Checks if the processed CSV file exists
@@ -190,7 +190,8 @@ def get_afin_data(output_path="./data/perturbed_dataset/en/negation/afin.csv", j
     Returns:
         DataFrame: The processed AFIN data with sentence1 and sentence2 columns
     """
-    
+    random.seed(seed)
+    np.random.seed(seed)
     
     # Step 1: Check if the processed CSV file already exists
     if os.path.exists(output_path):
@@ -229,6 +230,10 @@ def get_afin_data(output_path="./data/perturbed_dataset/en/negation/afin.csv", j
         
         # Create DataFrame
         df = pd.DataFrame({"sentence1": sentence1, "sentence2": sentence2})
+        
+        # Adding Random Sentences
+        df["rnd"] = np.random.permutation(df["sentence1"])
+        
         
         # Apply sample_size if specified
         if sample_size is not None and sample_size < len(df):

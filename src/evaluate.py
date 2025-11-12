@@ -392,13 +392,13 @@ if __name__ == "__main__":
         config = {
             "args_model":"llama3", #google/gemma-3-4b-it"
             "dataset_name": "mrpc",
-            "args_task": ["negation"],  # Testing the negation task
+            "args_task": ["antonym"],  # Testing the negation task
             "default_gpu": "cuda:1",
             "save": True,
             "target_lang": "en",
             "metric": "cosine",
             "batch_size": 2,
-            "sample_size": 500,
+            "sample_size": 100,
             "custom_class_path": None,
             "custom_kwargs": None,
         }
